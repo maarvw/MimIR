@@ -15,13 +15,22 @@ namespace mim {
  */
 
 const Def* Rewriter::map(const Def* old_def, Defs new_defs) {
-    return old2news_.back()[old_def] = world().tuple(new_defs);
+    //return old2news_.back()[old_def] = world().tuple(new_defs);
+    auto a = world().tuple(new_defs);
+    old2news_.emplace_back(old2news_.back().insert(old_def, a));
+    return a;
 }
 const Def* Rewriter::map(Defs old_defs, const Def* new_def) {
-    return old2news_.back()[world().tuple(old_defs)] = new_def;
+    //return old2news_.back()[world().tuple(old_defs)] = new_def;
+    auto a = world().tuple(old_defs);
+    old2news_.emplace_back(old2news_.back().insert(a, new_def));
+    return new_def;
 }
 const Def* Rewriter::map(Defs old_defs, Defs new_defs) {
-    return old2news_.back()[world().tuple(old_defs)] = world().tuple(new_defs);
+    //return old2news_.back()[world().tuple(old_defs)] = world().tuple(new_defs);
+    auto a= world().tuple(old_defs), b = world().tuple(new_defs);
+    old2news_.emplace_back(old2news_.back().insert(a, b));
+    return b;
 }
 
 const Def* Rewriter::rewrite(const Def* old_def) {
@@ -206,7 +215,9 @@ const Def* VarRewriter::rewrite_mut(Def* mut) {
 const Def* Zonker::map(const Def* old_def, const Def* new_def) {
     auto repr = lookup(new_def); // always normalize new_def to its representative
     if (!repr) repr = new_def;
-    return old2news_.back()[old_def] = repr;
+    //return old2news_.back()[old_def] = repr;
+    old2news_.emplace_back(old2news_.back().insert(old_def, repr));
+    return repr;
 }
 
 const Def* Zonker::lookup(const Def* old_def) {
@@ -228,7 +239,8 @@ const Def* Zonker::lookup(const Def* old_def) {
 
         // path compression: flatten all visited nodes
         for (auto def : path)
-            old2new[def] = repr;
+            //old2new[def] = repr;
+            old2new = old2new.insert(def, repr);
 
         return repr;
     }

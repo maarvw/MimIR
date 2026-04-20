@@ -592,3 +592,30 @@ TEST(Rewrite, Hole) {
         ASSERT_EQ(hole3, res);
     }
 }
+
+
+TEST(Setmaps,IntString) {
+    auto m1=setmap<int,std::string>({0,"null"});
+    auto m2=m1.insert(6,"sechs");
+    auto m3=m2.insert({{1,"eins"},{2,"zwei"}});
+    auto m4=m3.insert(3,"dreidreidreidreidrei");
+    ASSERT_TRUE(m4[0]=="null");
+    ASSERT_TRUE(m4[1]=="eins");
+    ASSERT_TRUE(m4[2]=="zwei");
+    ASSERT_TRUE(m4[6]=="sechs");
+    ASSERT_TRUE(m4[3]=="dreidreidreidreidrei");
+}
+
+TEST(Setmaps, StringInt) {
+    auto m1=setmap<std::string,int>({"null",0});
+    auto m2=m1.insert("sechs",6);
+    auto m3=m2.insert({{"eins",1},{"zwei",2}});
+    auto m4=m3.insert("dreidreidreidreidrei",3);
+    auto m5 = m4.insert("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 42);
+    ASSERT_TRUE(m4["null"]==0);
+    ASSERT_TRUE(m4["eins"]==1);
+    ASSERT_TRUE(m4["zwei"]==2);
+    ASSERT_TRUE(m4["sechs"]==6);
+    ASSERT_TRUE(m4["dreidreidreidreidrei"]==3);
+    ASSERT_TRUE(m5["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]==42);
+}

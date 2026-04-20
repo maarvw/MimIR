@@ -9,6 +9,12 @@
 #include "mim/rule.h"
 #include "mim/tuple.h"
 
+#include<../external/cryo/include/cryo/setmap.h>
+
+using cryo::setmap;
+
+using Def2DefMap = setmap<const mim::Def *, const mim::Def *>;
+
 namespace mim {
 
 class World;
@@ -49,14 +55,19 @@ public:
 
     /// @name Push / Pop
     ///@{
-    virtual void push() { old2news_.emplace_back(Def2Def{}); }
+    virtual void push() { old2news_.emplace_back(Def2DefMap{}); }
     virtual void pop() { old2news_.pop_back(); }
     ///@}
 
     /// @name Map / Lookup
     /// Map @p old_def to @p new_def and returns @p new_def.
     ///@{
-    virtual const Def* map(const Def* old_def, const Def* new_def) { return old2news_.back()[old_def] = new_def; }
+    //virtual const Def* map(const Def* old_def, const Def* new_def) { return old2news_.back()[old_def] = new_def; }
+    virtual const Def* map(const Def* old_def, const Def* new_def) { 
+        auto newmap = old2news_.back().insert(old_def,new_def); 
+        old2news_.emplace_back(newmap);
+        return new_def;
+    }
 
     // clang-format off
     const Def* map(const Def* old_def ,       Defs new_defs);
@@ -104,7 +115,8 @@ private:
     World* world_;
 
 protected:
-    std::deque<Def2Def> old2news_;
+    //std::deque<Def2Def> old2news_;
+    std::deque<Def2DefMap> old2news_;
 };
 
 class VarRewriter : public Rewriter {
