@@ -21,6 +21,7 @@ class World;
 
 /// Recurseivly rebuilds part of a program **into** the provided World w.r.t.\ Rewriter::map.
 /// This World may be different than the World we started with.
+/// @see @ref rewriter
 class Rewriter {
 public:
     /// @name Construction & Destruction
@@ -119,6 +120,8 @@ protected:
     std::deque<Def2DefMap> old2news_;
 };
 
+/// Extends Rewriter for variable substitution.
+/// @see @ref rewriter
 class VarRewriter : public Rewriter {
 public:
     /// @name Construction
