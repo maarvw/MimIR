@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "mim/driver.h"
+#include "mim/rewrite.h"
 
 namespace mim {
 
@@ -21,7 +22,7 @@ void Phase::run() {
  */
 
 void Analysis::reset() {
-    old2news_.clear();
+    old2new_ = Def2DefMap();//old2news_.clear();
     push();
     todo_ = false;
 }
