@@ -42,10 +42,10 @@ const Def* DS2CPS::rewrite_lam(Lam* lam) {
 
     // replace ds dom var with cps sigma var (cps dom)
     if (auto var = pi->has_var()) {
-        push();
+        auto old = old2new_;//push();
         map(var, sigma->var(2, 0));
         rw_codom = rewrite(codom);
-        pop();
+        old2new_ = old;//pop();
     }
 
     sigma->set(0, dom);

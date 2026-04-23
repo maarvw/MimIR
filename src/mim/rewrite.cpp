@@ -18,21 +18,21 @@ const Def* Rewriter::map(const Def* old_def, Defs new_defs) {
     //return old2news_.back()[old_def] = world().tuple(new_defs);
     auto a = world().tuple(new_defs);
     //old2news_.emplace_back(old2news_.back().insert(old_def, a));
-    old2news_.back() = old2news_.back().insert(old_def, a); 
+    old2new_ = old2new_.insert(old_def, a);  //old2news_.back() = old2news_.back().insert(old_def, a); 
     return a;
 }
 const Def* Rewriter::map(Defs old_defs, const Def* new_def) {
     //return old2news_.back()[world().tuple(old_defs)] = new_def;
     auto a = world().tuple(old_defs);
     //old2news_.emplace_back(old2news_.back().insert(a, new_def));
-    old2news_.back() = old2news_.back().insert(a, new_def);
+    old2new_ = old2new_.insert(a, new_def);//old2news_.back() = old2news_.back().insert(a, new_def);
     return new_def;
 }
 const Def* Rewriter::map(Defs old_defs, Defs new_defs) {
     //return old2news_.back()[world().tuple(old_defs)] = world().tuple(new_defs);
     auto a= world().tuple(old_defs), b = world().tuple(new_defs);
     //old2news_.emplace_back(old2news_.back().insert(a, b));
-    old2news_.back() = old2news_.back().insert(a, b);
+    old2new_ = old2new_.insert(a, b);//old2news_.back() = old2news_.back().insert(a, b);
     return b;
 }
 
@@ -163,10 +163,10 @@ const Def* Rewriter::rewrite_mut_Seq(Seq* seq) {
     if (auto var = seq->has_var(); var && l && *l <= world().flags().scalarize_threshold) {
         auto new_ops = absl::FixedArray<const Def*>(*l);
         for (size_t i = 0, e = *l; i != e; ++i) {
-            push();
+            auto old = old2new_;//push();
             map(var, world().lit_idx(e, i));
             new_ops[i] = rewrite(seq->body());
-            pop();
+            old2new_ = old;//pop();
         }
         return map(seq, world().prod(seq->is_intro(), new_ops));
     }
@@ -220,12 +220,12 @@ const Def* Zonker::map(const Def* old_def, const Def* new_def) {
     if (!repr) repr = new_def;
     //return old2news_.back()[old_def] = repr;
     //old2news_.emplace_back(old2news_.back().insert(old_def, repr));
-    old2news_.back() = old2news_.back().insert(old_def, repr);
+    old2new_ = old2new_.insert(old_def, repr);//old2news_.back() = old2news_.back().insert(old_def, repr);
     return repr;
 }
 
 const Def* Zonker::lookup(const Def* old_def) {
-    for (auto& old2new : old2news_ | std::views::reverse) {
+    //for (auto& old2new : old2news_ | std::views::reverse) {
         const Def* repr;
         auto path = DefVec();
         while (true) {
@@ -239,15 +239,15 @@ const Def* Zonker::lookup(const Def* old_def) {
             old_def = repr;
         }
 
-        if (path.empty()) continue;
+        //if (path.empty()) continue;
 
         // path compression: flatten all visited nodes
         for (auto def : path)
             //old2new[def] = repr;
-            old2new = old2new.insert(def,repr);//old2new = old2new.insert(def, repr);
+            old2new_ = old2new_.insert(def,repr);//old2new = old2new.insert(def, repr);
 
         return repr;
-    }
+    //}
 
     return nullptr;
 }

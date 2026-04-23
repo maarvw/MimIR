@@ -22,8 +22,9 @@ void Phase::run() {
  */
 
 void Analysis::reset() {
-    old2news_.clear();
-    push();
+    old2new_ = Def2DefMap();
+    // old2news_.clear();
+    // push();
     todo_ = false;
 }
 
