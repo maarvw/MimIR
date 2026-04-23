@@ -21,8 +21,7 @@ define xdot
     shell echo set \$tmp=\"$(mktemp)\" >/tmp/tmp.gdb
     source /tmp/tmp.gdb
     call $def->dot($tmp, $max, $types)
-    eval "shell xdot %s 2&> /dev/null &", $tmp
-end
+    eval "shell sh -c \"xdot %s > /tmp/xdot.log 2>&1 &\"", $tmp
 
 document xdot
 xdot
@@ -86,8 +85,7 @@ define xdotw
     shell echo set \$tmp=\"$(mktemp)\" >/tmp/tmp.gdb
     source /tmp/tmp.gdb
     call $world->dot($tmp, $annexes, $types)
-    eval "shell xdot %s 2&> /dev/null &", $tmp
-end
+    eval "shell sh -c \"xdot %s > /tmp/xdot.log 2>&1 &\"", $tmp
 
 document xdotw
 xdotw

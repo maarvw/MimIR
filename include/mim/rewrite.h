@@ -44,7 +44,7 @@ public:
     }
     void reset() {
         pop();
-        assert(old2new_.empty());//assert(old2news_.empty());
+        assert(old2news_.empty());
         push();
     }
     ///@}
@@ -56,8 +56,8 @@ public:
 
     /// @name Push / Pop
     ///@{
-    virtual void push() {  }//virtual void push() { old2news_.emplace_back(Def2DefMap{}); }
-    virtual void pop() { old2new_ = Def2DefMap(); }//virtual void pop() { old2news_.pop_back(); }
+    virtual void push() { old2news_.emplace_back(Def2DefMap{}); }
+    virtual void pop() { old2news_.pop_back(); }
     ///@}
 
     /// @name Map / Lookup
@@ -65,7 +65,7 @@ public:
     ///@{
     //virtual const Def* map(const Def* old_def, const Def* new_def) { return old2news_.back()[old_def] = new_def; }
     virtual const Def* map(const Def* old_def, const Def* new_def) { 
-        old2new_ = old2new_.insert(old_def,new_def);//auto newmap = old2news_.back().insert(old_def,new_def); 
+        old2news_.back() = old2news_.back().insert(old_def,new_def); 
         //old2news_.emplace_back(newmap);
         return new_def;
     }
@@ -79,9 +79,9 @@ public:
     /// Lookup `old_def` by searching in reverse through the stack of maps.
     /// @returns `nullptr` if nothing was found.
     virtual const Def* lookup(const Def* old_def) {
-        //for (const auto& old2new : old2news_ | std::views::reverse)
-        //    if (auto i = old2new.find(old_def); i != old2new.end()) return i->second;
-        if (auto i = old2new_.find(old_def); i != old2new_.end()) return i->second;
+        for (const auto& old2new : old2news_ | std::views::reverse)
+            if (auto i = old2new.find(old_def); i != old2new.end()) return i->second;
+        //if (auto i = old2new_.find(old_def); i != old2new_.end()) return i->second;
         return nullptr;
     }
     ///@}
@@ -108,7 +108,7 @@ public:
 
     friend void swap(Rewriter& rw1, Rewriter& rw2) noexcept {
         using std::swap;
-        swap(rw1.old2new_, rw2.old2new_);//swap(rw1.old2news_, rw2.old2news_);
+        swap(rw1.old2news_, rw2.old2news_);
         // Do NOT swap ptr_ and world_: they are back pointers!
     }
 
@@ -118,8 +118,8 @@ private:
 
 protected:
     //std::deque<Def2Def> old2news_;
-    //std::deque<Def2DefMap> old2news_;
-    Def2DefMap old2new_;
+    std::deque<Def2DefMap> old2news_;
+    //Def2DefMap old2new_;
 };
 
 /// Extends Rewriter for variable substitution.
@@ -199,8 +199,8 @@ public:
 
 private:
     const Def* get(const Def* old_def) {
-        //auto& old2new = old2news_.back();
-        if (auto i = old2new_.find(old_def); i != old2new_.end()) return i->second;//if (auto i = old2new.find(old_def); i != old2new.end()) return i->second;
+        auto& old2new = old2news_.back();
+        if (auto i = old2new.find(old_def); i != old2new.end()) return i->second;
         return nullptr;
     }
 };

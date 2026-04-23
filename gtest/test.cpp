@@ -619,3 +619,17 @@ TEST(Setmaps, StringInt) {
     ASSERT_TRUE(m4["dreidreidreidreidrei"]==3);
     ASSERT_TRUE(m5["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]==42);
 }
+
+TEST(Setmaps, OperatorEq) {
+    auto m1 = setmap<int,int>({1,2});
+    auto m2 = m1.insert(2,3);
+    auto m3 = m2.insert(2,1);
+    auto m4 = m3.insert(3, 2);
+    ASSERT_EQ(m4[1],2);
+    ASSERT_EQ(m4[2],1);
+    ASSERT_EQ(m4[3],2);
+    ASSERT_EQ(m4.size(),3);
+    int i=0;
+    for (auto m : m4) i++;
+    ASSERT_EQ(i, 3);
+}
