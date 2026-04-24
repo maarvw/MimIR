@@ -11,9 +11,9 @@
 
 #include<../external/cryo/include/cryo/setmap.h>
 
-using cryo::setmap;
 
-using Def2DefMap = setmap<const mim::Def*, const mim::Def*>;
+using Def2DefMap = cryo::setmap<const mim::Def*, const mim::Def*>;
+using MapFreezer = cryo::freezer<const mim::Def*, const mim::Def*>;
 
 namespace mim {
 

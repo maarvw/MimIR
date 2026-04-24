@@ -163,10 +163,10 @@ const Def* Rewriter::rewrite_mut_Seq(Seq* seq) {
     if (auto var = seq->has_var(); var && l && *l <= world().flags().scalarize_threshold) {
         auto new_ops = absl::FixedArray<const Def*>(*l);
         for (size_t i = 0, e = *l; i != e; ++i) {
-            auto old = old2new_;//push();
+            auto f = MapFreezer(&old2new_);//auto old = old2new_;//push();
             map(var, world().lit_idx(e, i));
             new_ops[i] = rewrite(seq->body());
-            old2new_ = old;//pop();
+            //old2new_ = old;//pop();
         }
         return map(seq, world().prod(seq->is_intro(), new_ops));
     }

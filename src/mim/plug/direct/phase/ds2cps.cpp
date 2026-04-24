@@ -2,6 +2,7 @@
 
 #include <mim/lam.h>
 #include <mim/world.h>
+#include "mim/rewrite.h"
 
 #include "mim/plug/direct/direct.h"
 
@@ -42,10 +43,10 @@ const Def* DS2CPS::rewrite_lam(Lam* lam) {
 
     // replace ds dom var with cps sigma var (cps dom)
     if (auto var = pi->has_var()) {
-        auto old = old2new_;//push();
+        auto f = MapFreezer(&old2new_);//auto old = old2new_;//push();
         map(var, sigma->var(2, 0));
         rw_codom = rewrite(codom);
-        old2new_ = old;//pop();
+        //old2new_ = old;//pop();
     }
 
     sigma->set(0, dom);
