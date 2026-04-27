@@ -16,6 +16,13 @@
 
 namespace mim {
 
+template<class T>
+concept DefPtr = std::is_pointer_v<std::remove_reference_t<T>>
+              && std::is_base_of_v<Def, std::remove_pointer_t<std::remove_reference_t<T>>>;
+
+template<class T>
+concept Enum = std::is_enum_v<std::remove_reference_t<T>>;
+
 class Driver;
 struct Flags;
 
@@ -563,10 +570,9 @@ public:
     // clang-format on
     ///@}
 
-    /// @name Cope with implicit Arguments
-    ///@{
-
+    /// @name implicit_app - Cope with implicit Arguments
     /// Places Hole%s as demanded by Pi::is_implicit() and then apps @p arg.
+    ///@{
     template<bool Normalize = true>
     const Def* implicit_app(const Def* callee, const Def* arg);
     template<bool Normalize = true>
@@ -583,12 +589,34 @@ public:
     {
         return implicit_app<Normalize>(callee, lit_nat((nat_t)arg));
     }
+    ///@}
 
-    /// Complete curried call of annexes obeying implicits.
-    // clang-format off
-    template<class Id, bool Normalize = true, class... Args> const Def* call(Id id, Args&&... args) { return call_<Normalize>(annex(id),   std::forward<Args>(args)...); }
-    template<class Id, bool Normalize = true, class... Args> const Def* call(       Args&&... args) { return call_<Normalize>(annex<Id>(), std::forward<Args>(args)...); }
-    // clang-format on
+    /// @name call
+    /// Complete curried call of @p callee obeying implicits.
+    ///@{
+    template<bool Normalize = true, class T, class... Args>
+    const Def* call(const Def* callee, T&& arg, Args&&... args) {
+        return call<Normalize>(implicit_app<Normalize>(callee, std::forward<T>(arg)), std::forward<Args>(args)...);
+    }
+
+    /// Base case.
+    template<bool Normalize = true, class T>
+    const Def* call(const Def* callee, T&& arg) {
+        return implicit_app<Normalize>(callee, std::forward<T>(arg));
+    }
+
+    /// Annex overload with enum instance as first argument.
+    template<Enum Id, bool Normalize = true, class... Args>
+    const Def* call(Id id, Args&&... args) {
+        return call<Normalize>(annex(id), std::forward<Args>(args)...);
+    }
+
+    /// Annex overload with enum tempalte argument @p Id for annexes w/o subtag.
+    template<class Id, bool Normalize = true, class... Args>
+    requires std::is_enum_v<Id>
+    const Def* call(Args&&... args) {
+        return call<Normalize>(annex<Id>(), std::forward<Args>(args)...);
+    }
     ///@}
 
     /// @name Vars & Muts
@@ -642,19 +670,6 @@ public:
     ///@}
 
 private:
-    /// @name call_
-    /// Helpers to unwind World::call with variadic templates.
-    ///@{
-    template<bool Normalize = true, class T, class... Args>
-    const Def* call_(const Def* callee, T arg, Args&&... args) {
-        return call_<Normalize>(implicit_app(callee, arg), std::forward<Args>(args)...);
-    }
-    template<bool Normalize = true, class T>
-    const Def* call_(const Def* callee, T arg) {
-        return implicit_app<Normalize>(callee, arg);
-    }
-    ///@}
-
     /// @name Put into Sea of Nodes
     ///@{
     template<class T, class... Args>
