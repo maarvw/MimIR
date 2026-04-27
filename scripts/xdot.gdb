@@ -112,3 +112,14 @@ xdotw &def->world()
 Show full DOT graph of 'world' including types and all annexes.
 xdotw &def->world() 1 1
 end
+
+
+
+define smdot
+    if $argc == 0 || $argc >= 2
+        echo "wrong input"
+    end
+    set $sm = $arg0
+    set $where = call $sm->save_dot()
+    eval "shell xdot %s", $where
+end

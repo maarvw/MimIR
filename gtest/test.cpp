@@ -14,6 +14,8 @@
 using namespace mim;
 using namespace mim::plug;
 
+using cryo::setmap;
+
 TEST(Zip, fold) {
     Driver driver;
     World& w    = driver.world();
@@ -630,6 +632,22 @@ TEST(Setmaps, OperatorEq) {
     ASSERT_EQ(m4[3],2);
     ASSERT_EQ(m4.size(),3);
     int i=0;
-    for (auto m : m4) i++;
+    for (auto _ : m4) i++;
     ASSERT_EQ(i, 3);
+}
+
+TEST(Setmaps, DotSet) {
+    auto m1 = setmap<int>({1, 5, 9, 4, 2, 0, 1, 4});
+    m1.save_dot();
+}
+
+TEST(Setmaps, DotMap) {
+    auto m1 = setmap<int,std::string>({1,"eins"});
+    m1 = m1.insert(2,"zwei");
+    m1 = m1.insert(4,"vier");
+    m1 = m1.insert(7,"sieben");
+    m1 = m1.insert(5,"fünf");
+    m1 = m1.insert(3,"drei");
+    m1 = m1.insert(9,"neun");
+    m1.save_dot();
 }
