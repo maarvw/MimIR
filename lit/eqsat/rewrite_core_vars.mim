@@ -2,6 +2,9 @@
 plugin core;
 plugin eqsat;
 
+fun extern _impl(): %eqsat.Impl =
+    return %eqsat.slotted;
+
 rule foo (a: Nat, b: Nat) : (%core.nat.add (a, (%core.nat.sub (b, a)))) => b;
 
 fun extern _rules(): %eqsat.Rules =

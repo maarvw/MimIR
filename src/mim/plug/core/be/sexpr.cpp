@@ -96,7 +96,8 @@ public:
 
     Emitter(World& world, std::ostream& ostream, bool slotted = false)
         : Super(world, "sexpr_emitter", ostream) {
-        slotted_ = slotted;
+        slotted_       = slotted;
+        slots_enabled_ = true;
     }
 
     bool is_valid(std::string_view s) { return !s.empty(); }
@@ -106,7 +107,7 @@ public:
     void emit_epilogue(Lam*);
     void finalize();
     void emit_lam(Lam* lam, MutSet& done);
-    std::string emit_var(BB& bb, const Def* var, const Def* type);
+    std::string emit_var(BB& bb, const Def* var, const Def* type, bool meta_var = false);
     std::string emit_head(BB& bb, Lam* lam, bool as_binding = false);
     std::string emit_cons_type(BB& bb, View<const Def*> ops);
     std::string emit_type(BB& bb, const Def* type);
@@ -115,7 +116,7 @@ public:
     std::string emit_bb(BB& bb, const Def* def);
 
 private:
-    std::string id(const Def*, bool is_var_use = false, bool omit_prefix = false) const;
+    std::string id(const Def*, bool is_var_use = false) const;
     std::string indent(size_t tabs, std::string term);
     std::string flatten(std::string term);
 
@@ -124,13 +125,19 @@ private:
     bool slotted() const { return slotted_; }
     bool slotted_;
 
+    // Temporarily disable slots while emitting.
+    // While slots are disabled, no identifier is prefixed with '$'
+    // and no var uses are wrapped in var nodes.
+    bool toggle_slots() { return slots_enabled_ = !slots_enabled_; }
+    bool slots_enabled_;
+
     std::ostringstream decls_;
     std::ostringstream func_decls_;
     std::ostringstream func_impls_;
 };
 
-std::string Emitter::id(const Def* def, bool is_var_use, bool omit_prefix) const {
-    std::string prefix = slotted() && !omit_prefix ? "$" : "";
+std::string Emitter::id(const Def* def, bool is_var_use) const {
+    std::string prefix = slotted() && slots_enabled_ ? "$" : "";
     std::string id;
 
     // In slotted-egg variable-uses need to be explicitly wrapped in a var node i.e. in λx.x (lam $x (var $x))
@@ -312,31 +319,55 @@ void Emitter::emit_lam(Lam* lam, MutSet& done) {
     }
 }
 
-std::string Emitter::emit_var(BB& bb, const Def* var, const Def* type) {
+std::string Emitter::emit_var(BB& bb, const Def* var, const Def* type, bool meta_var) {
     std::ostringstream os;
 
-    if (slotted()) {
-        ++tab;
-        tab.lnprint(os, "{}", emit_type(bb, type));
-        tab.lnprint(os, "{}", id(var));
-        --tab;
-        return os.str();
+    ++tab;
+    // We assume that the depth of projections for rule meta vars is at most one so
+    // (a: Nat, b: Bool) is okay but (a: [b: Nat]) is not.
+    if (slotted() && meta_var) {
+        auto projs = var->projs();
+        if (projs.size() == 1 || std::ranges::all_of(projs, [](auto proj) { return proj->sym().empty(); }))
+            tab.lnprint(os, "(cons (metavar {} {}) nil)", id(var), emit_type(bb, type));
+        else {
+            size_t i = 0;
+            std::vector<std::string> meta_vars;
+            for (auto proj : projs) {
+                std::ostringstream meta_var;
+                ++tab;
+                tab.lnprint(meta_var, "(metavar");
+                print(meta_var, "{}", emit_bb(bb, proj));
+                ++tab;
+                tab.lnprint(meta_var, "{})", emit_type(bb, type->proj(i++)));
+                --tab;
+                --tab;
+                meta_vars.push_back(meta_var.str());
+            }
+            print(os, "{}", emit_cons(meta_vars));
+        }
     }
 
-    ++tab;
-    auto projs = var->projs();
-    if (projs.size() == 1 || std::ranges::all_of(projs, [](auto proj) { return proj->sym().empty(); }))
-        tab.lnprint(os, "(var {} {})", id(var), emit_type(bb, type));
+    else if (slotted()) {
+        tab.lnprint(os, "{}", emit_type(bb, type));
+        tab.lnprint(os, "{}", id(var));
+    }
+
     else {
-        tab.lnprint(os, "(var {}", id(var));
-        size_t i = 0;
-        for (auto proj : projs)
-            print(os, " {}", emit_var(bb, proj, type->proj(i++)));
-        ++tab;
-        tab.lnprint(os, "{})", emit_type(bb, type));
-        --tab;
+        auto projs = var->projs();
+        if (projs.size() == 1 || std::ranges::all_of(projs, [](auto proj) { return proj->sym().empty(); }))
+            tab.lnprint(os, "(var {} {})", id(var), emit_type(bb, type));
+        else {
+            tab.lnprint(os, "(var {}", id(var));
+            size_t i = 0;
+            for (auto proj : projs)
+                print(os, " {}", emit_var(bb, proj, type->proj(i++)));
+            ++tab;
+            tab.lnprint(os, "{})", emit_type(bb, type));
+            --tab;
+        }
     }
     --tab;
+
     return os.str();
 }
 
@@ -356,9 +387,15 @@ std::string Emitter::emit_head(BB& bb, Lam* lam, bool as_binding) {
             tab.lnprint(os, "(scope");
             ++tab;
         }
-        tab.lnprint(os, "({} {} {}", lam_kind, ext, id(lam, false, true));
-    } else
-        print(os, "({} {} {}", lam_kind, ext, id(lam, false, true));
+        // We turn slot-printing off to emit the lam id without a slot prefix '$'
+        toggle_slots();
+        tab.lnprint(os, "({} {} {}", lam_kind, ext, id(lam));
+        toggle_slots();
+    } else {
+        toggle_slots();
+        print(os, "({} {} {}", lam_kind, ext, id(lam));
+        toggle_slots();
+    }
 
     print(os, "{}", emit_var(bb, lam->var(), lam->type()->dom()));
 
@@ -690,10 +727,12 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
         }
 
     } else if (auto rule = def->isa<Rule>()) {
-        auto meta_var_val = emit_var(bb, rule->meta_var(), rule->meta_var()->type());
+        toggle_slots();
+        auto meta_var_val = emit_var(bb, rule->meta_var(), rule->meta_var()->type(), true);
         auto lhs_val      = emit_bb(bb, rule->lhs());
         auto rhs_val      = emit_bb(bb, rule->rhs());
         auto guard_val    = emit_bb(bb, rule->guard());
+        toggle_slots();
         tab.lnprint(os, "{}", id(rule, true));
         print(decls_, "(rule {} {} {} {} {})\n\n", indent(1, id(rule)), indent(1, meta_var_val), indent(1, lhs_val),
               indent(1, rhs_val), indent(1, guard_val));

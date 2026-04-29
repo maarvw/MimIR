@@ -18,6 +18,8 @@ void SlottedRewrite::start() {
     std::ostringstream sexpr;
     driver().backend("sexpr-slotted")(old_world(), sexpr);
 
+    if (DEBUG) std::cout << sexpr.str() << "\n";
+
     auto rewrites = equality_saturate_slotted(sexpr.str(), rulesets, cost_fn);
 
     if (DEBUG) std::cout << pretty_ffi(rewrites, 80).c_str() << "\n";
