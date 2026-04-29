@@ -120,9 +120,18 @@ private:
         return def;
     }
 
-    void register_var(std::string name, const Def* converted) { vars_[name] = converted; }
-    void register_axm(std::string name, const Axm* converted) { axms_[name] = converted; }
-    void register_lam(std::string name, const Lam* converted) { lams_[name] = converted; }
+    void register_var(std::string name, const Def* converted) {
+        assert(vars_.contains(name) && "register_var: can't define the same var twice");
+        vars_[name] = converted;
+    }
+    void register_axm(std::string name, const Axm* converted) {
+        assert(axms_.contains(name) && "register_axm: can't define the same axiom twice");
+        axms_[name] = converted;
+    }
+    void register_lam(std::string name, const Lam* converted) {
+        assert(lams_.contains(name) && "register_lam: can't define the same lambda twice");
+        lams_[name] = converted;
+    }
 
     const Def* get_var(std::string name) { return vars_[name]; }
     const Def* get_axm(std::string name) { return axms_[name]; }
