@@ -222,10 +222,6 @@ void Emitter::start() {
     ostream() << decls_.str();
     ostream() << func_decls_.str();
     ostream() << func_impls_.str();
-
-    // TODO: Use pretty(sexpr, line_len) from the egg FFI
-    // to pretty-print the sexpr either based on a switch from the cli
-    // or as default after the sexpr backend has been completed
 }
 
 void Emitter::emit_imported(Lam* lam) {
