@@ -1,7 +1,6 @@
-
 // RUN: %mim %s -o -
 plugin core;
-// plugin eqsat;
+plugin eqsat;
 
 // If you want to use the 'slotted-egraphs' implementation
 // instead of 'egg' just define the config function below.
@@ -21,5 +20,17 @@ fun extern _impl(): %eqsat.Impl =
 fun extern _cost_fn(): %eqsat.CostFun =
     return %eqsat.AstSize;
 
-con extern mul_lit_nat [a: Nat, b: Nat, return : Cn Nat] =
-    return (%core.nat.add (a, (%core.nat.sub (b, a))));
+fun extern main(mem: %mem.M 0, argc: I32, argv: %mem.Ptr0 (%mem.Ptr0 I8)): [%mem.M 0, I32] =
+    loop (mem, 0I32, 0I32)
+    where
+        con loop(mem: %mem.M 0, i: I32, acc: I32) =
+            let cond = %core.icmp.ul (i, argc);
+            (exit, body)#cond mem
+            where
+                con body m: %mem.M 0 =
+                    let inc = %core.wrap.add 0 (1I32, i);
+                    let acc = %core.wrap.add 0 (i, acc);
+                    loop (m, inc, acc);
+                con exit(m: %mem.M 0) = return (m, acc);
+            end
+    end

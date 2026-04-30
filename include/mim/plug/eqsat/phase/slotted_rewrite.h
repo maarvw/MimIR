@@ -57,19 +57,18 @@ private:
 
     enum InitStage {
         Declarations,
-        Lambdas,
         Bindings,
     };
     void init(rust::Vec<RecExprFFI> rewrites, InitStage stage);
-    const Def* init_lam(uint32_t id, NodeFFI node);
-    const Def* init_con(uint32_t id, NodeFFI node);
+    const Def* init_root(uint32_t id, NodeFFI node);
     const Def* init_let(uint32_t id, NodeFFI node);
+    const Def* init_con(uint32_t id, NodeFFI node);
     const Def* init_axm(uint32_t id, NodeFFI node);
 
     void convert(rust::Vec<RecExprFFI> rewrites);
     const Def* convert(uint32_t id, bool recurse = false);
+    const Def* convert_root(uint32_t id, NodeFFI node);
     const Def* convert_let(uint32_t id, NodeFFI node);
-    const Def* convert_lam(uint32_t id, NodeFFI node);
     const Def* convert_con(uint32_t id, NodeFFI node);
     const Def* convert_app(uint32_t id, NodeFFI node);
     const Def* convert_var(uint32_t id, NodeFFI node);

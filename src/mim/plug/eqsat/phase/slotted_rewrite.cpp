@@ -20,14 +20,16 @@ void SlottedRewrite::start() {
     std::ostringstream sexpr;
     driver().backend("sexpr-slotted")(old_world(), sexpr);
 
-    if (DEBUG) std::cout << sexpr.str() << "\n";
-
     auto rewrites = equality_saturate_slotted(sexpr.str(), rulesets, cost_fn);
 
     if (DEBUG) std::cout << pretty_ffi(rewrites, 80).c_str() << "\n";
 
+    // TODO:
+    // - Rebuilding with root nodes
+    // - Scoped bindings
+    // - Polymorphic lambdas
+
     init(rewrites, InitStage::Declarations);
-    init(rewrites, InitStage::Lambdas);
     init(rewrites, InitStage::Bindings);
     convert(rewrites);
 
@@ -56,9 +58,7 @@ std::pair<rust::Vec<RuleSet>, CostFn> SlottedRewrite::import_config() {
             if (auto ruleset_config = Axm::isa<eqsat::rulesets>(body_app->arg())) {
                 for (auto ruleset : ruleset_config->args())
                     if (Axm::isa<eqsat::standard>(ruleset))
-                        // TODO: Uncomment
-                        // rulesets.push_back(RuleSet::Standard);
-                        print(std::cout, "todo");
+                        rulesets.push_back(RuleSet::Standard);
                     else
                         assert(false && "Provided ruleset does not exist for slotted");
 
@@ -90,9 +90,8 @@ void SlottedRewrite::init(rust::Vec<RecExprFFI> rewrites, InitStage stage) {
             const Def* res = nullptr;
             switch (node.kind) {
                 case MimKind::Axm: res = stage == InitStage::Declarations ? init_axm(id, node) : nullptr; break;
-                case MimKind::Lam: res = stage == InitStage::Lambdas ? init_lam(id, node) : nullptr; break;
-                case MimKind::Con: res = stage == InitStage::Lambdas ? init_con(id, node) : nullptr; break;
                 case MimKind::Let: res = stage == InitStage::Bindings ? init_let(id, node) : nullptr; break;
+                case MimKind::Root: res = stage == InitStage::Bindings ? init_root(id, node) : nullptr; break;
                 default: break;
             }
             added_[id] = res;
@@ -100,29 +99,22 @@ void SlottedRewrite::init(rust::Vec<RecExprFFI> rewrites, InitStage stage) {
     }
 }
 
-// TODO: implement
-// (lam <extern> <name> <domain-type> <codomain-type> $var-name (scope <filter> <body>))
-const Def* SlottedRewrite::init_lam(uint32_t id, NodeFFI node) { return nullptr; }
+// (root <extern> <name> <definition>)
+const Def* SlottedRewrite::init_root(uint32_t id, NodeFFI node) {
+    if (DEBUG) std::cout << "init - current node(" << id << "): " << node_ffi_str(node).c_str() << " - \n";
 
-// (con <extern> <name> <domain-type> $var-name (scope <filter> <body>))
-const Def* SlottedRewrite::init_con(uint32_t id, NodeFFI node) {
-    if (DEBUG) std::cout << "init - current node(" << id << "): " << node_ffi_str(node).c_str() << " - ";
-    auto domain_id = node.children[2];
-    if (DEBUG) std::cout << "\n";
-    auto domain_type    = convert(domain_id, true);
-    auto new_con        = new_world().mut_con(domain_type);
-    auto con_name       = get_symbol(node.children[1]);
-    auto con_name_nouid = remove_uid(con_name);
-    new_con->set(con_name_nouid);
-    register_lam(con_name, new_con);
+    auto name = get_symbol(node.children[1]);
 
-    auto var_name = get_slot(id);
-    auto var      = new_con->var();
-    var->set(var_name);
-    register_var(var_name, var);
+    const Def* def = nullptr;
+    auto def_node  = get_node_unsafe(node.children[2]);
+    if (def_node.kind == MimKind::Con) {
+        def = init_con(node.children[2], def_node);
+        def->set(name);
+        register_lam(name, def->as<Lam>());
+    }
 
-    if (DEBUG) std::cout << new_con << "\n";
-    return new_con;
+    if (DEBUG) std::cout << def << "\n";
+    return def;
 }
 
 // (let $name (scope <definition> <expression>))
@@ -132,23 +124,35 @@ const Def* SlottedRewrite::init_let(uint32_t id, NodeFFI node) {
     auto name       = get_slot(id);
     auto name_scope = get_node(MimKind::Scope, node.children[0]);
 
-    // If the let-binding is for a lambda, this lambda will already have been
-    // created via init_lam/con.
-    auto let_def_node = get_node_unsafe(name_scope.children[0]);
-    if (let_def_node.kind == MimKind::Con || let_def_node.kind == MimKind::Lam) {
-        auto lam_def = get_def(let_def_node.children[1]);
-        register_lam(name, lam_def->as<Lam>());
-        if (DEBUG) std::cout << lam_def << "\n";
-        return nullptr;
-    }
-
     if (DEBUG) std::cout << "\n";
-    auto def = convert(name_scope.children[0], true);
-    def->set(name);
-    register_var(name, def);
+    const Def* def = nullptr;
+    auto def_node  = get_node_unsafe(name_scope.children[0]);
+    if (def_node.kind == MimKind::Con) {
+        def = init_con(name_scope.children[0], def_node);
+        def->set(name);
+        register_lam(name, def->as<Lam>());
+    } else {
+        def = convert(name_scope.children[0], true);
+        def->set(name);
+        register_var(name, def);
+    }
 
     if (DEBUG) std::cout << def << "\n";
     return nullptr;
+}
+
+// (con <domain-type> $var-name (scope <filter> <body>))
+const Def* SlottedRewrite::init_con(uint32_t id, NodeFFI node) {
+    if (DEBUG) std::cout << "init - current node(" << id << "): " << node_ffi_str(node).c_str() << " - \n";
+    auto domain_type = convert(node.children[0], true);
+    auto new_con     = new_world().mut_con(domain_type);
+
+    auto var_name = get_slot(id);
+    auto var      = new_con->var();
+    var->set(var_name);
+    register_var(var_name, var);
+
+    return new_con;
 }
 
 // (axm <name> <type>)
@@ -188,8 +192,8 @@ const Def* SlottedRewrite::convert(uint32_t id, bool recurse) {
 
     if (DEBUG) std::cout << "convert - current node(" << id << "): " << node_ffi_str(node).c_str() << " - ";
     switch (node.kind) {
+        case MimKind::Root: res = convert_root(id, node); break;
         case MimKind::Let: res = convert_let(id, node); break;
-        case MimKind::Lam: res = convert_lam(id, node); break;
         case MimKind::Con: res = convert_con(id, node); break;
         case MimKind::App: res = convert_app(id, node); break;
         case MimKind::Var: res = convert_var(id, node); break;
@@ -222,47 +226,62 @@ const Def* SlottedRewrite::convert(uint32_t id, bool recurse) {
     return added_[id] = res;
 }
 
+// (root <extern> <name> <definition>)
+const Def* SlottedRewrite::convert_root(uint32_t id, NodeFFI node) {
+    auto is_extern = get_symbol(node.children[0]);
+    auto def       = get_def(node.children[1]);
+
+    // Where convert_con really happens
+    if (def->isa<Lam>()) {
+        auto con       = def->as_mut<Lam>();
+        auto con_node  = get_node(MimKind::Con, node.children[2]);
+        auto var_scope = get_node(MimKind::Scope, con_node.children[1]);
+        auto filter    = get_def(var_scope.children[0]);
+        auto body      = get_def(var_scope.children[1]);
+        if (filter && body) {
+            // Definition
+            con->set_filter(filter);
+            con->set_body(body);
+        } else {
+            // Declaration
+            con->set_filter(false);
+        }
+        if (is_extern == "extern") con->externalize();
+    }
+
+    return def;
+}
+
 // (let $name (scope <definition> <expression>))
 const Def* SlottedRewrite::convert_let(uint32_t id, NodeFFI node) {
     auto name_scope = get_node(MimKind::Scope, node.children[0]);
+    auto def        = get_def(id);
     auto expr       = get_def(name_scope.children[1]);
+
+    // Where convert_con really happens
+    if (def->isa<Lam>()) {
+        auto con       = def->as_mut<Lam>();
+        auto con_node  = get_node(MimKind::Con, name_scope.children[0]);
+        auto var_scope = get_node(MimKind::Scope, con_node.children[1]);
+        auto filter    = get_def(var_scope.children[0]);
+        auto body      = get_def(var_scope.children[1]);
+        if (filter && body) {
+            // Definition
+            con->set_filter(filter);
+            con->set_body(body);
+        } else {
+            // Declaration
+            con->set_filter(false);
+        }
+    }
+
     return expr;
 }
 
-// TODO: implement
-// (lam <extern> <name> <domain-type> <codomain-type> $var-name (scope <filter> <body>))
-const Def* SlottedRewrite::convert_lam(uint32_t id, NodeFFI node) { return nullptr; }
-
-// (con <extern> <name> <domain-type> $var-name (scope <filter> <body>))
+// (con <domain-type> $var-name (scope <filter> <body>))
 const Def* SlottedRewrite::convert_con(uint32_t id, NodeFFI node) {
-    auto con = get_def(node.children[1])->as_mut<Lam>();
-
-    auto var_scope = get_node(MimKind::Scope, node.children[3]);
-    auto filter    = get_def(var_scope.children[0]);
-    auto body      = get_def(var_scope.children[1]);
-
-    if (filter && body) {
-        // Definition
-        con->set_filter(filter);
-        con->set_body(body);
-    } else {
-        // Declaration
-        con->set_filter(false);
-    }
-
-    auto is_extern = get_symbol(node.children[0]);
-    if (is_extern == "extern") con->externalize();
-
-    // TODO: Somehow main in rebuild_import.mim ends up with a free var
-    // $f252 at the end which makes it so that it isn't closed so externalize fails.
-    // The body that we set for main has free vars $f254 and $f252
-    // where $f254 is the var that gets bound by main so it ends up
-    // with the remaining free var of body $f252. (It should only have free var $254)
-    // $f252 is the var that gets introduced by atoi_cont_a and
-    // is used in multiple places throughout for example the body
-    // of atoi_cont_a is an application of atoi to a tuple containing
-    // atoi_cont_b whose body uses an extract from $f252 in an application.
-
+    // Real conversion happens in convert_let because we need a name to get to the Def
+    auto con = get_def(id);
     return con;
 }
 
