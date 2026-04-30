@@ -132,7 +132,7 @@ private:
                       << "existing def: " << vars_[name] << "\n";
             assert(false);
         }
-        std::cout << "registering " << name << " in scope: (" << curr_loc_.first << curr_loc_.second << ")\n";
+        std::cout << "registering " << name << " in scope: (" << curr_loc_.depth << ", " << curr_loc_.offset << ")\n";
         vars_[name] = converted;
     }
     void register_axm(std::string name, const Axm* converted) {
@@ -176,7 +176,12 @@ private:
     //           s4    s5  s6
     // The location of scope s5 would be at (2, 1) because it is at
     // at a tree depth of 2 and at an offset of 1 at that depth.
-    typedef std::pair<size_t, size_t> Loc;
+    struct Loc {
+        size_t depth;
+        size_t offset;
+
+        bool operator==(const Loc& other) const noexcept { return depth == other.depth && offset == other.offset; }
+    };
     Loc curr_loc_;
 
     struct Scope {
@@ -188,9 +193,15 @@ private:
     // The current scope which we mostly use to construct the scope map during init
     Scope* curr_scope_;
 
+    struct LocHash {
+        std::size_t operator()(const Loc& loc) const noexcept {
+            return std::hash<size_t>()(loc.depth) ^ (std::hash<size_t>()(loc.offset) << 1);
+        }
+    };
+
     // For every scope-location we store a Scope struct that stores a pointer to its
     // parent scope, the name of the var it introduces, and the Def associated with this var.
-    std::unordered_map<Loc, Scope> scopes_;
+    std::unordered_map<Loc, Scope, LocHash> scopes_;
 
     // There is a special root scope that we access with curr_scope_ = 0
     // which is a registry of all top-level/closed Defs that exist beyond

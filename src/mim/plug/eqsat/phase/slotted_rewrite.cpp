@@ -95,7 +95,7 @@ void SlottedRewrite::init(rust::Vec<RecExprFFI> rewrites, InitStage stage) {
 const Def* SlottedRewrite::init(uint32_t id, InitStage stage, bool recurse) {
     auto node = get_node_unsafe(id);
 
-    if (node.kind == MimKind::Scope) curr_loc_.first++;
+    if (node.kind == MimKind::Scope) curr_loc_.depth++;
 
     const Def* res = nullptr;
     switch (node.kind) {
@@ -110,7 +110,7 @@ const Def* SlottedRewrite::init(uint32_t id, InitStage stage, bool recurse) {
         for (uint32_t child : node.children)
             init(child, stage, recurse);
 
-    if (node.kind == MimKind::Scope) curr_loc_.first--;
+    if (node.kind == MimKind::Scope) curr_loc_.depth--;
 
     return res;
 }
@@ -155,7 +155,7 @@ const Def* SlottedRewrite::init_let(uint32_t id, NodeFFI node) {
     auto name       = get_slot(id);
     auto name_scope = get_node(MimKind::Scope, node.children[0]);
 
-    ++curr_loc_.first;
+    curr_loc_.depth++;
     if (DEBUG) std::cout << "\n";
     const Def* def = nullptr;
     auto def_node  = get_node_unsafe(name_scope.children[0]);
@@ -168,7 +168,7 @@ const Def* SlottedRewrite::init_let(uint32_t id, NodeFFI node) {
         def->set(name);
         register_var(name, def);
     }
-    --curr_loc_.first;
+    curr_loc_.depth--;
 
     if (DEBUG) std::cout << def << "\n";
     return nullptr;
@@ -183,9 +183,9 @@ const Def* SlottedRewrite::init_con(uint32_t id, NodeFFI node) {
     auto var_name = get_slot(id);
     auto var      = new_con->var();
     var->set(var_name);
-    curr_loc_.first++;
+    curr_loc_.depth++;
     register_var(var_name, var);
-    curr_loc_.first--;
+    curr_loc_.depth--;
 
     return new_con;
 }
@@ -205,7 +205,7 @@ void SlottedRewrite::convert(rust::Vec<RecExprFFI> rewrites) {
 const Def* SlottedRewrite::convert(uint32_t id, bool recurse) {
     auto node = get_node_unsafe(id);
 
-    if (node.kind == MimKind::Scope) curr_loc_.first++;
+    if (node.kind == MimKind::Scope) curr_loc_.depth++;
 
     if (recurse)
         for (uint32_t child : node.children)
@@ -246,7 +246,7 @@ const Def* SlottedRewrite::convert(uint32_t id, bool recurse) {
         default: break;
     }
 
-    if (node.kind == MimKind::Scope) curr_loc_.first--;
+    if (node.kind == MimKind::Scope) curr_loc_.depth--;
 
     if (DEBUG) std::cout << res << "\n";
     return added_[id] = res;
