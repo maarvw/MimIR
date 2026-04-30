@@ -2,6 +2,17 @@ set print pretty on
 set confirm off
 set pagination off
 
+define smdot
+    if $argc >= 2
+        echo "wrong input"
+    end
+    if $argc == 1
+        set $sm = $arg0
+        call $sm->save_dot()
+    end
+    eval "shell  xdot /tmp/SMdot.tmp &"
+end
+
 define xdot
     if $argc == 0 || $argc >= 4
         help xdot
@@ -115,11 +126,5 @@ end
 
 
 
-define smdot
-    if $argc == 0 || $argc >= 2
-        echo "wrong input"
-    end
-    set $sm = $arg0
-    set $where = call $sm->save_dot()
-    eval "shell xdot %s", $where
-end
+
+

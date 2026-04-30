@@ -10,6 +10,40 @@
 
 namespace mim {
 
+
+void save_dot(Def2DefMap* sm) {
+    std::string where="/tmp/SMdot.tmp";
+    // if (!std::filesystem::exists(where+".tmp"))
+    //     where = where+".tmp";
+    // else {
+    //     int n = 0;
+    //     while  (std::filesystem::exists(where+std::to_string(n)+".tmp")) n++;
+    //     where = where+std::to_string(n)+".tmp";
+    // }
+    std::ofstream out(where);
+    out << "digraph setmap {\n";
+    for (auto it = sm->begin();it!=sm->end();++it){
+        auto n = it.current_;
+        if (n->has_left()) {
+            out << "\""<<(it->first?it->first->gid():0)<<": "<<(it->second?it->second->gid():0)<<"\"";
+            out << " -> ";
+            auto l = n->left()->val();
+            out << "\""<<(l.first?l.first->gid():0)<<": "<<(l.second?l.second->gid():0)<<"\"";
+            out << ";\n";
+        } 
+        if (n->has_right()) {
+            out << "\""<<(it->first?it->first->gid():0)<<": "<<(it->second?it->second->gid():0)<<"\"";
+            out << " -> ";
+            auto r = n->right()->val();
+            out << "\""<<(r.first?r.first->gid():0)<<": "<<(r.second?r.second->gid():0)<<"\"";
+            out << ";\n";
+        }
+    }
+    out<<"}";
+    out.close();
+}
+
+
 /*
  * Rewriter
  */
@@ -225,6 +259,7 @@ const Def* Zonker::map(const Def* old_def, const Def* new_def) {
 }
 
 const Def* Zonker::lookup(const Def* old_def) {
+    save_dot(&old2new_);
     //for (auto& old2new : old2news_ | std::views::reverse) {
         const Def* repr;
         auto path = DefVec();
@@ -245,6 +280,8 @@ const Def* Zonker::lookup(const Def* old_def) {
         for (auto def : path)
             //old2new[def] = repr;
             old2new_ = old2new_.insert(def,repr);//old2new = old2new.insert(def, repr);
+
+        
 
         return repr;
     //}
@@ -276,5 +313,10 @@ const Def* Zonker::rewire_mut(Def* mut) {
 
     return mut;
 }
+
+
+
+
+
 
 } // namespace mim
