@@ -190,18 +190,21 @@ private:
     // we need and we can simply look it up in the scopes_ map.
     struct Loc {
         size_t depth;
-
-        // TODO: I think we should use some kind of a frequency map or histogram
-        // to track how often we have visited each depth and be able to know our
-        // our current offset at each depth.
         size_t offset;
 
         bool operator==(const Loc& other) const noexcept { return depth == other.depth && offset == other.offset; }
     };
+
+    struct LocHash {
+        std::size_t operator()(const Loc& loc) const noexcept {
+            return std::hash<size_t>()(loc.depth) ^ (std::hash<size_t>()(loc.offset) << 1);
+        }
+    };
+
     Loc curr_loc_;
 
     // Tells us exactly how often we have visited each depth
-    // so we can keep track of the current offset at each depth.
+    // so we can keep track of the current locations' offset at each depth.
     // maps: Depth -> #Visits
     std::unordered_map<size_t, size_t> depth_visits_;
 
@@ -210,9 +213,6 @@ private:
         std::string var_name;
         const Def* def;
     };
-
-    // The current scope which we mostly use to construct the scope map during init
-    Scope* curr_scope_;
 
     void enter_scope(NodeFFI node, bool dbg) {
         if (node.kind == MimKind::Scope) {
@@ -230,11 +230,8 @@ private:
         }
     }
 
-    struct LocHash {
-        std::size_t operator()(const Loc& loc) const noexcept {
-            return std::hash<size_t>()(loc.depth) ^ (std::hash<size_t>()(loc.offset) << 1);
-        }
-    };
+    // The current scope which we mostly use to construct the scope map during init
+    Scope curr_scope_;
 
     // For every scope-location we store a Scope struct that stores a pointer to its
     // parent scope, the name of the var it introduces, and the Def associated with this var.
