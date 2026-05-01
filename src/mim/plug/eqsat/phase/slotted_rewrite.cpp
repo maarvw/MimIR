@@ -77,16 +77,13 @@ std::pair<rust::Vec<RuleSet>, CostFn> SlottedRewrite::import_config() {
 // Converts remaining nodes to Def's in the new world and sets the bodies of the previously created lambdas.
 void SlottedRewrite::init(rust::Vec<RecExprFFI> rewrites, InitStage stage) {
     for (auto rewrite : rewrites) {
-        added_        = {};
-        scopes_       = {};
-        depth_visits_ = {};
-        curr_loc_     = {0, 0};
-        curr_scope_   = {curr_loc_, "", nullptr};
-        res_          = rewrite.nodes;
-        auto root_id  = res_.size() - 1;
+        reset_loc();
+        reset_cache();
+        nodes_       = rewrite.nodes;
+        auto root_id = nodes_.size() - 1;
         init(root_id, stage, true);
     }
-}
+} // namespace mim::plug::eqsat
 
 // Initially creates Defs in the new world according to the specfied 'InitStage'
 // This is done in a particular order to ensure that dependencies are upheld.
@@ -143,7 +140,7 @@ const Def* SlottedRewrite::init_root(uint32_t id, NodeFFI node) {
     if (def_node.kind == MimKind::Con) {
         def = init_con(node.children[2], def_node, true);
         def->set(name);
-        register_var(name, def);
+        register_var(name, def, true);
     }
 
     if (DEBUG) std::cout << def << "\n";
@@ -208,12 +205,10 @@ const Def* SlottedRewrite::init_con(uint32_t id, NodeFFI node, bool root) {
 // Converts remaining nodes to Def's in the new world and sets the bodies of the previously created lambdas.
 void SlottedRewrite::convert(rust::Vec<RecExprFFI> rewrites) {
     for (auto rewrite : rewrites) {
-        added_        = {};
-        scopes_       = {};
-        depth_visits_ = {};
-        curr_loc_     = {0, 0};
-        res_          = rewrite.nodes;
-        auto root_id  = res_.size() - 1;
+        reset_loc();
+        reset_cache();
+        nodes_       = rewrite.nodes;
+        auto root_id = nodes_.size() - 1;
         convert(root_id, true);
     }
 }

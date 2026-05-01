@@ -18,11 +18,21 @@ public:
     SlottedRewrite(World& world, std::string name)
         : Phase(world, std::move(name))
         , Rewriter(world.inherit()) {
+        scopes_ = {
+            {curr_loc_, Scope{{0, 0}, {0, 0}, "", nullptr}}
+        };
+        curr_scope_ = &scopes_[curr_loc_];
+
         register_symbols();
     }
     SlottedRewrite(World& world, flags_t annex)
         : Phase(world, annex)
         , Rewriter(world.inherit()) {
+        scopes_ = {
+            {curr_loc_, Scope{{0, 0}, {0, 0}, "", nullptr}}
+        };
+        curr_scope_ = &scopes_[curr_loc_];
+
         register_symbols();
     }
 
@@ -126,16 +136,22 @@ private:
         return def;
     }
 
-    void register_var(std::string name, const Def* def) {
+    void reset_cache() { added_ = {}; }
+
+    void register_var(std::string name, const Def* def, bool root = false) {
         if (vars_.contains(name)) {
             std::cerr << "register_var: can't define the same var: " << name << " twice\n"
                       << "existing def: " << vars_[name] << "\n";
             assert(false);
         }
-        std::cout << "registering " << name << " in scope: (" << curr_loc_.depth << ", " << curr_loc_.offset << ")\n";
-        curr_scope_.var_name = name;
-        curr_scope_.def      = def;
-        vars_[name]          = def;
+        if (root) {
+            std::cout << "Registering: " << name << "-" << def << " in root scope\n";
+        } else {
+            curr_scope_->var_name = name;
+            curr_scope_->def      = def;
+            std::cout << "Registering: " << curr_scope_->to_str() << "\n";
+        }
+        vars_[name] = def;
     }
     void register_axm(std::string name, const Axm* converted) {
         if (axms_.contains(name)) {
@@ -150,13 +166,13 @@ private:
     const Def* get_axm(std::string name) { return axms_[name]; }
 
     NodeFFI get_node(MimKind expected, uint32_t id) {
-        assert(res_[id].kind == expected && "get_node: mismatch between expected and actual node kind");
-        return res_[id];
+        assert(nodes_[id].kind == expected && "get_node: mismatch between expected and actual node kind");
+        return nodes_[id];
     }
-    NodeFFI get_node_unsafe(uint32_t id) { return res_[id]; }
-    std::string get_symbol(uint32_t id) { return res_[id].symbol.c_str(); }
-    uint64_t get_num(uint32_t id) { return res_[id].num; }
-    std::string get_slot(uint32_t id) { return res_[id].slot.c_str(); }
+    NodeFFI get_node_unsafe(uint32_t id) { return nodes_[id]; }
+    std::string get_symbol(uint32_t id) { return nodes_[id].symbol.c_str(); }
+    uint64_t get_num(uint32_t id) { return nodes_[id].num; }
+    std::string get_slot(uint32_t id) { return nodes_[id].slot.c_str(); }
     std::vector<uint32_t> get_cons_flat(uint32_t id) {
         std::vector<uint32_t> flattened;
         auto curr_cons = get_node_unsafe(id);
@@ -209,23 +225,27 @@ private:
         }
     };
 
-    Loc curr_loc_;
+    void reset_loc() {
+        depth_visits_ = {};
+        curr_loc_     = {0, 0};
+    }
 
     // Keeps track of how often we have visited each scope-depth
     // so we can keep track of the current locations' offset at each depth.
     // maps: Depth -> #Visits
     std::unordered_map<size_t, size_t> depth_visits_;
+    Loc curr_loc_;
 
     struct Scope {
-        Loc parent;
+        Loc loc;
+        Loc parent_loc;
         std::string var_name;
         const Def* def;
 
         std::string to_str() const {
             std::ostringstream os;
-            os << "Scope{ parent=";
-            os << parent.to_str();
-            os << ", var=\"" << var_name << "\"";
+            os << "Scope{ loc=" << loc.to_str() << ", parent_loc=" << parent_loc.to_str() << ", var=\"" << var_name
+               << "\"";
 
             os << ", def=";
             if (def)
@@ -240,54 +260,52 @@ private:
 
     void set_scope() {
         auto scope  = scopes_[curr_loc_];
-        curr_scope_ = scope;
-    }
-
-    void set_parent() {
-        auto parent_loc    = curr_loc_;
-        curr_scope_.parent = parent_loc;
+        scope.loc   = curr_loc_;
+        curr_scope_ = &scope;
     }
 
     void enter_scope(NodeFFI node, bool dbg) {
         if (node.kind == MimKind::Scope) {
-            set_parent();
+            auto parent_loc = curr_loc_;
 
             curr_loc_.depth++;
             curr_loc_.offset = depth_visits_[curr_loc_.depth];
-            if (dbg) std::cout << "Entering scope - Loc(" << curr_loc_.depth << ", " << curr_loc_.offset << ")\n";
 
             set_scope();
-            if (dbg) std::cout << "Current scope: " << curr_scope_.to_str() << "\n";
+
+            curr_scope_->parent_loc = parent_loc;
+
+            if (dbg) std::cout << "Entering: " << curr_scope_->to_str() << "\n";
         }
     }
 
     void exit_scope(NodeFFI node, bool dbg = false, bool ignore_visit = false) {
         if (node.kind == MimKind::Scope) {
             curr_loc_.depth--;
-
             if (!ignore_visit) depth_visits_[curr_loc_.depth]++;
-
             curr_loc_.offset = depth_visits_[curr_loc_.depth];
-            if (dbg) std::cout << "Exiting scope - Loc(" << curr_loc_.depth << ", " << curr_loc_.offset << ")\n";
 
             set_scope();
-            if (dbg) std::cout << "Current scope: " << curr_scope_.to_str() << "\n";
+            if (dbg) std::cout << "Exiting: " << curr_scope_->to_str() << "\n";
         }
     }
 
     // The current scope which we mostly use to construct the scope map during init
-    Scope curr_scope_;
+    Scope* curr_scope_;
 
     // For every scope-location we store a Scope struct that stores a pointer to its
     // parent scope, the name of the var it introduces, and the Def associated with this var.
     std::unordered_map<Loc, Scope, LocHash> scopes_;
+
+    // TODO: we need another mapping from RecExprFFI to scopes because
+    // every RecExprFFI has its own scope structure.
 
     // There is a special root scope that we access with curr_scope_ = 0
     // which is a registry of all top-level/closed Defs that exist beyond
     // the current RecExprFFI.
     std::set<std::pair<std::string, const Def*>> root_scope_;
 
-    rust::Vec<NodeFFI> res_;
+    rust::Vec<NodeFFI> nodes_;
     std::unordered_map<uint32_t, const Def*> added_;
     std::unordered_map<std::string, const Def*> vars_;
     std::unordered_map<std::string, const Def*> axms_;
