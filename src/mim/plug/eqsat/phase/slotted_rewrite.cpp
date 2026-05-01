@@ -20,17 +20,17 @@ void SlottedRewrite::start() {
     std::ostringstream sexpr;
     driver().backend("sexpr-slotted")(old_world(), sexpr);
 
-    auto rewrites = equality_saturate_slotted(sexpr.str(), rulesets, cost_fn);
+    auto rec_exprs = equality_saturate_slotted(sexpr.str(), rulesets, cost_fn);
 
-    if (DEBUG) std::cout << pretty_ffi(rewrites, 80).c_str() << "\n";
+    if (DEBUG) std::cout << pretty_ffi(rec_exprs, 80).c_str() << "\n";
 
     // TODO:
     // - Scoped bindings
     // - Polymorphic lambdas
 
-    init(rewrites, InitStage::Declarations);
-    init(rewrites, InitStage::Bindings);
-    convert(rewrites);
+    init(rec_exprs, InitStage::Declarations);
+    init(rec_exprs, InitStage::Bindings);
+    convert(rec_exprs);
 
     swap(old_world(), new_world());
 }
@@ -75,13 +75,19 @@ std::pair<rust::Vec<RuleSet>, CostFn> SlottedRewrite::import_config() {
 }
 
 // Converts remaining nodes to Def's in the new world and sets the bodies of the previously created lambdas.
-void SlottedRewrite::init(rust::Vec<RecExprFFI> rewrites, InitStage stage) {
-    for (auto rewrite : rewrites) {
+void SlottedRewrite::init(rust::Vec<RecExprFFI> rec_exprs, InitStage stage) {
+    size_t rec_expr_idx = 0;
+    for (auto rec_expr : rec_exprs) {
         reset_loc();
         reset_cache();
-        nodes_       = rewrite.nodes;
-        auto root_id = nodes_.size() - 1;
+
+        set_nodes(rec_expr.nodes);
+        set_scopes(rec_expr_idx);
+
+        auto root_id = nodes().size() - 1;
         init(root_id, stage, true);
+
+        rec_expr_idx++;
     }
 } // namespace mim::plug::eqsat
 
@@ -103,7 +109,7 @@ const Def* SlottedRewrite::init(uint32_t id, InitStage stage, bool recurse) {
         case MimKind::Let: res = stage == InitStage::Bindings ? init_let(id, node) : nullptr; break;
         default: break;
     }
-    added_[id] = res;
+    cache_set(id, res);
 
     if (recurse)
         for (uint32_t child : node.children)
@@ -203,13 +209,19 @@ const Def* SlottedRewrite::init_con(uint32_t id, NodeFFI node, bool root) {
 }
 
 // Converts remaining nodes to Def's in the new world and sets the bodies of the previously created lambdas.
-void SlottedRewrite::convert(rust::Vec<RecExprFFI> rewrites) {
-    for (auto rewrite : rewrites) {
+void SlottedRewrite::convert(rust::Vec<RecExprFFI> rec_exprs) {
+    size_t rec_expr_idx = 0;
+    for (auto rec_expr : rec_exprs) {
         reset_loc();
         reset_cache();
-        nodes_       = rewrite.nodes;
-        auto root_id = nodes_.size() - 1;
+
+        set_nodes(rec_expr.nodes);
+        set_scopes(rec_expr_idx);
+
+        auto root_id = nodes().size() - 1;
         convert(root_id, true);
+
+        rec_expr_idx++;
     }
 }
 
@@ -227,7 +239,7 @@ const Def* SlottedRewrite::convert(uint32_t id, bool recurse, bool update_loc) {
         for (uint32_t child : node.children)
             convert(child, recurse);
 
-    const Def* res = added_[id];
+    const Def* res = cache_get(id);
     if (res && node.kind != MimKind::Con && node.kind != MimKind::Lam) return res;
 
     if (DEBUG) std::cout << "convert - current node(" << id << "): " << node_ffi_str(node).c_str() << " - ";
@@ -265,7 +277,7 @@ const Def* SlottedRewrite::convert(uint32_t id, bool recurse, bool update_loc) {
     if (update_loc) exit_scope(node, DEBUG);
 
     if (DEBUG) std::cout << res << "\n";
-    return added_[id] = res;
+    return cache_set(id, res);
 }
 
 // (root <extern> <name> <definition>)
