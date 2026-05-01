@@ -230,7 +230,7 @@ const Def* SlottedRewrite::convert(uint32_t id, bool recurse, bool update_loc) {
             convert(child, recurse);
 
     const Def* res = cache_get(id);
-    if (res && node.kind != MimKind::Con && node.kind != MimKind::Lam) return res;
+    if (res) return res;
 
     if (DEBUG) std::cout << "convert - current node(" << id << "): " << node_ffi_str(node).c_str() << " - ";
     switch (node.kind) {
