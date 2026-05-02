@@ -507,7 +507,7 @@ std::string Emitter::emit_type(BB& bb, const Def* type) {
         if (!world().flags2annex().contains(axm->flags()))
             print(decls_, "(axm {} {})\n\n", id(axm), emit_type(bb, axm->type()));
     } else if (auto var = type->isa<Var>()) {
-        print(os, "{}", id(var));
+        print(os, "{}", id(var, true));
     } else if (auto hole = type->isa<Hole>()) {
         print(os, "(hole {})", id(hole));
     } else if (auto extract = type->isa<Extract>()) {

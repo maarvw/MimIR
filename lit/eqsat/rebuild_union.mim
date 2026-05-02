@@ -3,7 +3,6 @@
 
 plugin eqsat;
 
-// TODO: slotted doesn't work yet
 fun extern _impl(): %eqsat.Impl =
     return %eqsat.__IMPL__;
 
