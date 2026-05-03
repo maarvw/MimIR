@@ -67,7 +67,6 @@ target_include_directories(libmim
         $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include> # for config.h
         $<INSTALL_INTERFACE:include>
 )
-
 target_link_libraries(libmim
     PUBLIC
         absl::btree
@@ -79,7 +78,6 @@ target_link_libraries(libmim
         rang
         ${CMAKE_DL_LIBS}
 )
-
 
 install(
     FILES "${CMAKE_BINARY_DIR}/include/mim/config.h"

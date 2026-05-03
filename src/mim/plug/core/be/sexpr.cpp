@@ -3,7 +3,8 @@
 #include <sstream>
 
 #include <mim/plug/core/be/sexpr.h>
-#include <mim/plug/eqsat/eqsat.h>
+// TODO: update to extra path
+// #include <mim/plug/eqsat/eqsat.h>
 #include <mim/plug/math/math.h>
 
 #include "mim/def.h"
@@ -274,8 +275,9 @@ void Emitter::finalize() {
     // We don't want to emit config lams that define which rules should be emitted.
     // The rules in the body of such a lambda will be emitted into decls_
     // via emit_bb() but we don't want to emit the lambda itself.
-    else if (Axm::isa<mim::plug::eqsat::Rules>(root()->ret_dom()))
-        return;
+    // TODO: uncomment after include
+    // else if (Axm::isa<mim::plug::eqsat::Rules>(root()->ret_dom()))
+    //     return;
 
     LamSet rec_lams;
     auto root_lam = nest().root()->mut()->as_mut<Lam>();
@@ -564,20 +566,20 @@ std::string Emitter::emit_type(BB& bb, const Def* type) {
         auto index = extract->index();
         // See explanation for the same thing in emit_bb
         auto is_nested_proj = false;
-        if (auto lit = Lit::isa(index); lit && tuple->isa<Extract>()) {
+        if (tuple->isa<Extract>() && Lit::isa(index)) {
             auto curr_tuple = tuple;
             auto curr_index = index;
-            while (curr_tuple != nullptr && curr_index != nullptr)
-                if (auto lit = Lit::isa(curr_index); lit && curr_tuple->isa<Extract>()) {
-                    curr_tuple = tuple->as<Extract>()->tuple();
-                    curr_index = tuple->as<Extract>()->index();
+            while (curr_tuple && curr_index) {
+                if (curr_tuple->isa<Extract>() && Lit::isa(curr_index)) {
+                    auto extract = curr_tuple->as<Extract>();
+                    curr_tuple   = extract->tuple();
+                    curr_index   = extract->index();
                     continue;
-                } else if (auto lit = Lit::isa(curr_index); lit && curr_tuple->isa<Var>()) {
+                } else if (curr_tuple->isa<Var>() && Lit::isa(curr_index)) {
                     is_nested_proj = true;
-                    break;
-                } else {
-                    break;
                 }
+                break;
+            }
         }
         if (!slotted() && ((Lit::isa(index) && tuple->isa<Var>()) || is_nested_proj))
             print(os, "{}", id(extract));
@@ -738,20 +740,20 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
         // ex.:  (var foo (sigma (var bar (sigma (var baz Nat)))))
         // In this example, we have an extract where the tuple: 'bar' is another extract from 'foo'.
         auto is_nested_proj = false;
-        if (auto lit = Lit::isa(index); lit && tuple->isa<Extract>()) {
+        if (tuple->isa<Extract>() && Lit::isa(index)) {
             auto curr_tuple = tuple;
             auto curr_index = index;
-            while (curr_tuple != nullptr && curr_index != nullptr)
-                if (auto lit = Lit::isa(curr_index); lit && curr_tuple->isa<Extract>()) {
-                    curr_tuple = tuple->as<Extract>()->tuple();
-                    curr_index = tuple->as<Extract>()->index();
+            while (curr_tuple && curr_index) {
+                if (curr_tuple->isa<Extract>() && Lit::isa(curr_index)) {
+                    auto extract = curr_tuple->as<Extract>();
+                    curr_tuple   = extract->tuple();
+                    curr_index   = extract->index();
                     continue;
-                } else if (auto lit = Lit::isa(curr_index); lit && curr_tuple->isa<Var>()) {
+                } else if (curr_tuple->isa<Var>() && Lit::isa(curr_index)) {
                     is_nested_proj = true;
-                    break;
-                } else {
-                    break;
                 }
+                break;
+            }
         }
         if (!slotted() && ((Lit::isa(index) && tuple->isa<Var>()) || is_nested_proj))
             tab.lnprint(os, "{}", id(extract));
