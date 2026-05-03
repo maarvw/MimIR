@@ -40,7 +40,14 @@ struct Version {
     constexpr bool operator==(const Version& other) const noexcept {
         return major == other.major && minor == other.minor;
     }
+
+    friend std::ostream& operator<<(std::ostream& os, const Version& v) {
+        return os << v.major << '.' << v.minor << " (" << v.hash << ")";
+    }
 };
+
+#define MIM_VERSION \
+    Version { MIM_VER_MAJOR, MIM_VER_MINOR, MIM_GIT_HASH }
 
 /// Basic info and registration function pointer to be returned from a specific plugin.
 /// Use Driver to load such a plugin.
@@ -57,9 +64,6 @@ struct Plugin {
     /// Callback for registering the mapping from backend names to emission functions in the given @p backends map.
     void (*register_backends)(Backends&);
 };
-
-#define MIM_VERSION \
-    Version { MIM_VER_MAJOR, MIM_VER_MINOR, MIM_GIT_HASH }
 
 /// @name Plugin Interface
 /// @see Plugin
