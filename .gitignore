@@ -23,4 +23,4 @@ assets/logo.pdf
 assets/*.synctex.gz
 .vscode
 pyrightconfig.json
-mim_py/
+mim_py/src/mim_py/mim_enums/

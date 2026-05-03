@@ -94,28 +94,23 @@ set(MIM_PY_VENV           "${PROJECT_SOURCE_DIR}/.venv")
 set(MIM_PY_PYTHON         "${MIM_PY_VENV}/bin/python")
 set(MIM_PY_STAGE          "${CMAKE_BINARY_DIR}/mim_py_stage")
 set(MIM_PY_WHEELS         "${CMAKE_BINARY_DIR}/mim_py_wheels")
-set(MIM_PY_VENV_STAMP     "${CMAKE_BINARY_DIR}/.mim_py_venv.stamp")
 set(MIM_PY_INSTALL_SCRIPT "${PROJECT_SOURCE_DIR}/cmake/MimPyInstallWheel.cmake")
 
-# venv: create + install build backend (idempotent via stamp file)
-add_custom_command(
-    OUTPUT  "${MIM_PY_VENV_STAMP}"
-    COMMAND "${CMAKE_COMMAND}" -E echo "[mim_py] preparing venv at ${MIM_PY_VENV}"
+# venv: wiped & recreated on every build
+add_custom_target(mim_py_venv
+    COMMAND "${CMAKE_COMMAND}" -E echo "[mim_py] (re)creating venv at ${MIM_PY_VENV}"
+    COMMAND "${CMAKE_COMMAND}" -E rm -rf "${MIM_PY_VENV}"
     COMMAND "${Python3_EXECUTABLE}" -m venv "${MIM_PY_VENV}"
     COMMAND "${MIM_PY_PYTHON}" -m pip install --upgrade pip
     COMMAND "${MIM_PY_PYTHON}" -m pip install build
-    COMMAND "${CMAKE_COMMAND}" -E touch "${MIM_PY_VENV_STAMP}"
-    COMMENT "mim_py: setting up ${MIM_PY_VENV}"
+    COMMENT "mim_py: (re)creating ${MIM_PY_VENV}"
     VERBATIM
 )
-add_custom_target(mim_py_venv DEPENDS "${MIM_PY_VENV_STAMP}")
 
 # main mim_py package: stage source, drop pymim .so in, build wheel, pip install
 set(_mim_py_main_stage  "${MIM_PY_STAGE}/main")
 set(_mim_py_main_wheels "${MIM_PY_WHEELS}/main")
-set(_mim_py_main_stamp  "${CMAKE_BINARY_DIR}/.mim_py_main.stamp")
-add_custom_command(
-    OUTPUT  "${_mim_py_main_stamp}"
+add_custom_target(mim_py_main
     COMMAND "${CMAKE_COMMAND}" -E rm -rf "${_mim_py_main_stage}" "${_mim_py_main_wheels}"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory
             "${PROJECT_SOURCE_DIR}/mim_py" "${_mim_py_main_stage}"
@@ -128,12 +123,10 @@ add_custom_command(
             "-DPYTHON=${MIM_PY_PYTHON}"
             "-DWHEEL_DIR=${_mim_py_main_wheels}"
             -P "${MIM_PY_INSTALL_SCRIPT}"
-    COMMAND "${CMAKE_COMMAND}" -E touch "${_mim_py_main_stamp}"
-    DEPENDS pymim "${MIM_PY_VENV_STAMP}"
     COMMENT "mim_py: building & installing main package"
     VERBATIM
 )
-add_custom_target(mim_py_main DEPENDS "${_mim_py_main_stamp}")
+add_dependencies(mim_py_main pymim mim_all_plugins mim_py_venv)
 
 # plugins: discovered at configure time under mim_py/plugins/*/pyproject.toml
 file(GLOB _mim_py_plugin_tomls CONFIGURE_DEPENDS
@@ -145,9 +138,7 @@ foreach(_toml ${_mim_py_plugin_tomls})
     set(_target mim_py_plugin_${_plugin_name})
     set(_stage   "${MIM_PY_STAGE}/plugins/${_plugin_name}")
     set(_wheels  "${MIM_PY_WHEELS}/plugins/${_plugin_name}")
-    set(_stamp   "${CMAKE_BINARY_DIR}/.${_target}.stamp")
-    add_custom_command(
-        OUTPUT  "${_stamp}"
+    add_custom_target(${_target}
         COMMAND "${CMAKE_COMMAND}" -E rm -rf "${_stage}" "${_wheels}"
         COMMAND "${CMAKE_COMMAND}" -E copy_directory "${_plugin_dir}" "${_stage}"
         COMMAND "${MIM_PY_PYTHON}" -m build --wheel
@@ -156,17 +147,16 @@ foreach(_toml ${_mim_py_plugin_tomls})
                 "-DPYTHON=${MIM_PY_PYTHON}"
                 "-DWHEEL_DIR=${_wheels}"
                 -P "${MIM_PY_INSTALL_SCRIPT}"
-        COMMAND "${CMAKE_COMMAND}" -E touch "${_stamp}"
-        DEPENDS "${_mim_py_main_stamp}" "${MIM_PY_VENV_STAMP}"
         COMMENT "mim_py: building & installing ${_target}"
         VERBATIM
     )
-    add_custom_target(${_target} DEPENDS "${_stamp}")
+    add_dependencies(${_target} mim_py_main)
     list(APPEND _mim_py_plugin_targets ${_target})
 endforeach()
 
 # umbrella target: part of default build because MIM_BUILD_PYTHON is ON
-add_custom_target(mim_py ALL DEPENDS mim_py_main ${_mim_py_plugin_targets})
+add_custom_target(mim_py ALL)
+add_dependencies(mim_py mim_py_main ${_mim_py_plugin_targets})
 endif()
 
 write_basic_package_version_file(
