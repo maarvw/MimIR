@@ -1,0 +1,15 @@
+/// # The mytest Plugin {#mytest}
+///
+/// @see mim::plug::mytest
+///
+/// A minimal mytest plugin
+///
+/// [TOC]
+///
+/// ## Operations
+///
+/// ### %%mytest.const_idx
+///
+/// The 42 constant, evaluated using a normalizer
+///
+axm %mytest.const_idx: [n: Nat] → Idx n, normalize_const;

@@ -10,6 +10,7 @@ set(MIM_PLUGINS
     math
     matrix
     mem
+    mytest
     opt
     option
     ord
