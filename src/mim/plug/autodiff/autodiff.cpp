@@ -31,7 +31,7 @@ const Def* id_pullback(const Def* A) {
     auto& world       = A->world();
     auto arg_pb_ty    = pullback_type(A, A);
     auto id_pb        = world.mut_lam(arg_pb_ty)->set("id_pb");
-    auto id_pb_scalar = id_pb->var(0_s)->set("s");
+    auto id_pb_scalar = id_pb->var(0uz)->set("s");
     id_pb->app(true,
                id_pb->var(1), // can not use ret_var as the result might be higher order
                id_pb_scalar);

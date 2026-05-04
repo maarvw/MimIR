@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 
 #include <limits>
@@ -81,14 +82,7 @@ template<int w> using w2f = typename detail::w2f_<w>::type;
 MIM_8_16_32_64(CODE4)
 #undef CODE4
 
-/// A `size_t` literal. Use `0_s` to disambiguate `0` from `nullptr`.
-constexpr size_t operator""_s(unsigned long long int i) { return size_t(i); }
 constexpr nat_t operator""_n(unsigned long long int i) { return nat_t(i); }
-#if defined(__STDCPP_FLOAT16_T__)
-constexpr f16 operator""_f16(long double d) { return f16(d); }
-#endif
-constexpr f32 operator""_f32(long double d) { return f32(d); }
-constexpr f64 operator""_f64(long double d) { return f64(d); }
 ///@}
 
 /// @name rem
