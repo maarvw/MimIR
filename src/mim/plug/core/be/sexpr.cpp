@@ -109,8 +109,6 @@ public:
 
     using LamSet = std::set<Lam*>;
     LamSet next_lams(Lam* lam);
-    bool is_reachable(Lam* target_lam, Lam* curr_lam, LamSet& visited);
-    bool is_recursive(Lam* lam);
 
     void emit_lam(Lam* lam, LamSet& rec_lams);
     std::string emit_var(BB& bb, const Def* var, const Def* type, bool meta_var = false);
@@ -294,30 +292,10 @@ std::set<Lam*> Emitter::next_lams(Lam* lam) {
     return next_lams;
 }
 
-bool Emitter::is_reachable(Lam* target_lam, Lam* curr_lam, std::set<Lam*>& visited) {
-    if (!visited.insert(curr_lam).second) return false;
-    for (auto next_lam : next_lams(curr_lam)) {
-        if (next_lam == target_lam) return true;
-        if (is_reachable(target_lam, next_lam, visited)) return true;
-    }
-
-    return false;
-}
-
-bool Emitter::is_recursive(Lam* lam) {
-    for (auto next_lam : next_lams(lam)) {
-        if (next_lam == lam) return true;
-
-        std::set<Lam*> visited;
-        if (is_reachable(lam, next_lam, visited)) return true;
-    }
-
-    return false;
-}
-
 void Emitter::emit_lam(Lam* lam, LamSet& rec_lams) {
     // We do not want to re-emit recursively defined lambdas because it would result in an endless loop
-    if (is_recursive(lam)) rec_lams.emplace(lam);
+    auto lam_node = nest()[lam];
+    if (lam_node->is_recursive()) rec_lams.emplace(lam);
     assert(lam2bb_.contains(lam));
     auto& bb = lam2bb_[lam];
 
