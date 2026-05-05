@@ -74,7 +74,6 @@ target_link_libraries(libmim
         absl::flat_hash_map absl::flat_hash_set
         absl::node_hash_map absl::node_hash_set
         fe
-        rang
         ${CMAKE_DL_LIBS}
 )
 

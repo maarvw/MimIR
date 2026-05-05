@@ -13,6 +13,3 @@
 [submodule "lyra"]
 	path = submodules/lyra
 	url = ../../bfgroup/lyra.git
-[submodule "rang"]
-	path = submodules/rang
-	url = ../../leissa/rang.git
