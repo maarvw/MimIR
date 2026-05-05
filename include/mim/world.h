@@ -622,6 +622,13 @@ public:
     const Def* call(Args&&... args) {
         return call<Normalize>(annex<Id>(), std::forward<Args>(args)...);
     }
+
+    /// Annex overload with with `flags_t` as first argument.
+    template<bool Normalize = true, class... Args>
+    const Def* call(flags_t id, Args&&... args) {
+        return call<Normalize>(annex(id), std::forward<Args>(args)...);
+    }
+
     ///@}
 
     /// @name Vars & Muts
