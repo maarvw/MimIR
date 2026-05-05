@@ -15,19 +15,9 @@ void init_driver(py::module_& m) {
     py::class_<mim::Driver, std::unique_ptr<mim::Driver, py::nodelete>, fe::SymPool>(m, "Driver")
         .def(py::init<>())
         .def("world", &mim::Driver::world, py::return_value_policy::reference_internal)
-        // clang-format offf
-        .def(
-            "add_import",
-            [](mim::Driver& driver, std::string path, std::string str) {
-                return driver.imports().add(fs::path(path), driver.sym(str), ast::Tok::Tag::K_import);
-            },
-            py::return_value_policy::reference_internal)
-        .def(
-            "add_plugin",
-            [](mim::Driver& driver, std::string path, std::string str) {
-                return driver.imports().add(fs::path(path), driver.sym(str), ast::Tok::Tag::K_plugin);
-            },
-            py::return_value_policy::reference_internal)
+        // clang-format off
+        .def("add_import", [](mim::Driver& driver, std::string path, std::string str) { return driver.imports().add(fs::path(path), driver.sym(str), ast::Tok::Tag::K_import); }, py::return_value_policy::reference_internal)
+        .def("add_plugin", [](mim::Driver& driver, std::string path, std::string str) { return driver.imports().add(fs::path(path), driver.sym(str), ast::Tok::Tag::K_plugin); }, py::return_value_policy::reference_internal)
         // clang-format on
         .def("add_search_path", &mim::Driver::add_search_path)
         .def("log", &mim::Driver::log, py::return_value_policy::reference_internal)
