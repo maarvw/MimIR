@@ -307,6 +307,7 @@ void Emitter::emit_lam(Lam* lam, LamSet& rec_lams) {
     int unclosed_parens = 0;
     for (auto next_lam : next_lams(lam)) {
         if (!rec_lams.contains(next_lam)) {
+            std::cout << "emit_lam(" << next_lam << ")\n";
             emit_lam(next_lam, rec_lams);
             // A lambda-binding in slotted opens two parentheses, one for the let-node and one for its scope
             unclosed_parens += slotted() ? 2 : 1;
