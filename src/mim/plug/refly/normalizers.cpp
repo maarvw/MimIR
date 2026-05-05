@@ -1,4 +1,4 @@
-#include <rang.hpp>
+#include <fe/term.h>
 
 #include <mim/tuple.h>
 #include <mim/world.h>
@@ -30,7 +30,7 @@ void debug_print(const Def* lvl, const Def* def) {
                   ? static_cast<Log::Level>(*l)
                   : Log::Level::Debug;
     }
-    world.log().log(level, __FILE__, __LINE__, "{}debug_print: {}{}", rang::fg::yellow, def, rang::fg::reset);
+    world.log().log(level, __FILE__, __LINE__, "{}debug_print: {}{}", fe::term::FG::Yellow, def, fe::term::FG::Reset);
     world.log().log(level, def->loc(), "def : {}", def);
     world.log().log(level, def->loc(), "id  : {}", def->unique_name());
     world.log().log(level, def->type()->loc(), "type: {}", def->type());

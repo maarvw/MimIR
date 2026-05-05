@@ -5,7 +5,6 @@
 #include <string>
 
 #include <lyra/lyra.hpp>
-#include <rang.hpp>
 
 #include "mim/config.h"
 #include "mim/driver.h"
