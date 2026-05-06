@@ -122,9 +122,6 @@ add_custom_target(mim_py_venv
 )
 
 # Generate __init__.pyi for the mim_py package via pybind11-stubgen.
-# Output lands in build/mim_py_stubs/mim_py/__init__.pyi, then is mirrored
-# into the source tree so Pyright (extraPaths -> mim_py/src) sees fresh types
-# and the wheel build picks it up via the source-tree copy below.
 set(_mim_py_stubs_build "${CMAKE_BINARY_DIR}/mim_py_stubs/mim_py")
 add_custom_target(mim_py_stubs
     COMMAND "${CMAKE_COMMAND}" -E rm -rf "${_mim_py_stubs_build}"

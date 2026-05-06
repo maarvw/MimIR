@@ -29,11 +29,12 @@ void init_sym_pool(py::module_&);
 PYBIND11_MODULE(mim, m) {
     // Register foundational types first so World's method signatures resolve
     // to Python class names instead of raw C++ spellings ("mim::Lit" -> "Lit").
-    mim::init_def(m);       // Def, Lit
+    // Please consider The ordering for future added Types.
+    mim::init_def(m); 
     mim::init_lit(m);
-    fe::init_sym(m);        // Sym
+    fe::init_sym(m);
     fe::init_sym_pool(m);
-    mim::init_lam(m);       // Pi, Lam (derive from Def)
+    mim::init_lam(m);
     mim::init_pi(m);
 
     mim::init_world(m);
