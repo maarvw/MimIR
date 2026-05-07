@@ -1,4 +1,3 @@
-#include <fstream>
 #include <iostream>
 #include <regex>
 #include <sstream>
@@ -94,8 +93,9 @@ class Emitter : public mim::Emitter<std::string, std::string, BB, Emitter> {
 public:
     using Super = mim::Emitter<std::string, std::string, BB, Emitter>;
 
-    Emitter(World& world, std::ostream& ostream, bool slotted = false)
+    Emitter(World& world, std::ostream& ostream, bool typed = false, bool slotted = false)
         : Super(world, "sexpr_emitter", ostream) {
+        typed_         = typed;
         slotted_       = slotted;
         slots_enabled_ = true;
         vars_enabled_  = true;
@@ -124,6 +124,11 @@ private:
     std::string id(const Def*, bool is_var_use = false) const;
     std::string indent(size_t tabs, std::string term);
     std::string flatten(std::string term);
+
+    // Determines whether the symbolic expression should
+    // be emitted with type annotations.
+    bool typed() const { return typed_; }
+    bool typed_;
 
     // Determines whether the symbolic expression should
     // be emitted in a style that is compatible with slotted-egraphs.
@@ -245,7 +250,7 @@ void Emitter::emit_imported(Lam* lam) {
     if (slotted()) {
         print(func_decls_, "(root {} {}", ext, id(lam));
         ++tab;
-        tab.lnprint(func_decls_, "(con");
+        tab.lnprint(func_decls_, "(lam");
         print(func_decls_, "{}", emit_var(bb, lam->var(), lam->type()->dom()));
         ++tab;
         tab.lnprint(func_decls_, "(scope nil nil)");
@@ -254,7 +259,7 @@ void Emitter::emit_imported(Lam* lam) {
         --tab;
 
     } else {
-        print(func_decls_, "(con {} {}", ext, id(lam));
+        print(func_decls_, "(lam {} {}", ext, id(lam));
         print(func_decls_, "{}", emit_var(bb, lam->var(), lam->type()->dom()));
         print(func_decls_, ")\n\n");
     }
@@ -375,22 +380,18 @@ std::string Emitter::emit_var(BB& bb, const Def* var, const Def* type, bool meta
     }
 
     else if (slotted()) {
-        tab.lnprint(os, "{}", emit_type(bb, type));
         tab.lnprint(os, "{}", id(var));
     }
 
     else {
         auto projs = var->projs();
         if (projs.size() == 1 || std::ranges::all_of(projs, [](auto proj) { return proj->sym().empty(); }))
-            tab.lnprint(os, "(var {} {})", id(var), emit_type(bb, type));
+            tab.lnprint(os, "(var {})", id(var));
         else {
             tab.lnprint(os, "(var {}", id(var));
             size_t i = 0;
             for (auto proj : projs)
                 print(os, "{}", emit_var(bb, proj, type->proj(i++)));
-            ++tab;
-            tab.lnprint(os, "{})", emit_type(bb, type));
-            --tab;
         }
     }
     --tab;
@@ -401,10 +402,7 @@ std::string Emitter::emit_var(BB& bb, const Def* var, const Def* type, bool meta
 std::string Emitter::emit_head(BB& bb, Lam* lam, bool as_binding) {
     std::ostringstream os;
 
-    // TODO: Is there ever a case where we would be emitting a lambda instead of a continuation
-    // since the assertions in the Emitter visit() method seem to make this impossible?
-    const std::string lam_kind = lam->isa_cn(lam) ? "con" : "lam";
-    const std::string ext      = lam->is_external() ? "extern" : "intern";
+    const std::string ext = lam->is_external() ? "extern" : "intern";
 
     if (slotted()) {
         if (as_binding) {
@@ -413,13 +411,13 @@ std::string Emitter::emit_head(BB& bb, Lam* lam, bool as_binding) {
             tab.lnprint(os, "{}", id(lam));
             tab.lnprint(os, "(scope");
             ++tab;
-            tab.lnprint(os, "({}", lam_kind);
+            tab.lnprint(os, "(lam");
         } else {
             // We toggle slot-printing to emit the lam id without a slot prefix '$'
             toggle_slots();
             print(os, "(root {} {}", ext, id(lam));
             ++tab;
-            tab.lnprint(os, "({}", lam_kind);
+            tab.lnprint(os, "(lam");
             toggle_slots();
         }
 
@@ -427,9 +425,9 @@ std::string Emitter::emit_head(BB& bb, Lam* lam, bool as_binding) {
         tab.lnprint(os, "(let");
         ++tab;
         tab.lnprint(os, "{}", id(lam));
-        tab.lnprint(os, "({} {} {}", lam_kind, ext, id(lam));
+        tab.lnprint(os, "(lam {} {}", ext, id(lam));
     } else {
-        print(os, "({} {} {}", lam_kind, ext, id(lam));
+        print(os, "(lam {} {}", ext, id(lam));
     }
 
     print(os, "{}", emit_var(bb, lam->var(), lam->type()->dom()));
@@ -682,6 +680,8 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
     std::ostringstream os;
 
     ++tab;
+    if (typed()) tab.lnprint(os, "(@ {}", emit_type(bb, def->type()));
+
     if (def->type()->isa<Type>() || def->type()->isa<Univ>()) {
         tab.lnprint(os, "{}", emit_type(bb, def));
 
@@ -690,14 +690,14 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
 
     } else if (auto lit = def->isa<Lit>()) {
         if (lit->type()->isa<Nat>())
-            tab.lnprint(os, "(lit {} Nat)", lit);
+            tab.lnprint(os, "(lit {})", lit);
         else if (auto size = Idx::isa(lit->type()))
             if (auto lit_size = Idx::size2bitwidth(size); lit_size && *lit_size == 1)
-                tab.lnprint(os, "(lit {} Bool)", lit);
+                tab.lnprint(os, "(lit {})", lit);
             else
-                tab.lnprint(os, "(lit {} {})", lit->get(), emit_type(bb, lit->type()));
+                tab.lnprint(os, "(lit {})", lit->get());
         else
-            tab.lnprint(os, "(lit {} {})", lit->get(), emit_type(bb, lit->type()));
+            tab.lnprint(os, "(lit {})", lit->get());
 
     } else if (auto tuple = def->isa<Tuple>()) {
         print(os, "{}", emit_node(bb, tuple, "tuple", true));
@@ -830,6 +830,8 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
         error("Unhandled Def in SExpr backend: {} : {}", def, def->type());
         fe::unreachable();
     }
+
+    if (typed()) print(os, ")");
     --tab;
 
     return os.str();
@@ -840,8 +842,18 @@ void emit(World& world, std::ostream& ostream) {
     emitter.run();
 }
 
-void emit_slotted(World& world, std::ostream& ostream) {
+void emit_typed(World& world, std::ostream& ostream) {
     Emitter emitter(world, ostream, true);
+    emitter.run();
+}
+
+void emit_slotted(World& world, std::ostream& ostream) {
+    Emitter emitter(world, ostream, false, true);
+    emitter.run();
+}
+
+void emit_slotted_typed(World& world, std::ostream& ostream) {
+    Emitter emitter(world, ostream, true, true);
     emitter.run();
 }
 
