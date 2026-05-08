@@ -146,7 +146,7 @@ private:
     std::ostream& os_;
     bool types_;
     const Def* root_;
-    Tab tab_{"    "};
+    fe::Tab tab_{"    "};
     DefSet done_;
 };
 
@@ -197,7 +197,7 @@ void Nest::dot(const char* file) const {
 }
 
 void Nest::dot(std::ostream& os) const {
-    Tab tab{"    "};
+    fe::Tab tab{"    "};
     (tab++).println(os, "digraph {{");
     tab.println(os, "ordering=out;");
     tab.println(os, "node [shape=box,style=filled];");
@@ -205,7 +205,7 @@ void Nest::dot(std::ostream& os) const {
     (--tab).println(os, "}}");
 }
 
-void Nest::Node::dot(Tab tab, std::ostream& os) const {
+void Nest::Node::dot(fe::Tab tab, std::ostream& os) const {
     std::string s;
     for (const auto& scc : topo_) {
         s += '[';

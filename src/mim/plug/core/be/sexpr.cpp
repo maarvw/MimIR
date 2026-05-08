@@ -33,7 +33,7 @@ struct BB {
     }
 
     template<class... Args>
-    std::string assign(Tab tab, bool slotted, std::string name, std::format_string<Args...> s, Args&&... args) {
+    std::string assign(fe::Tab tab, bool slotted, std::string name, std::format_string<Args...> s, Args&&... args) {
         if (!assigned.contains(name)) {
             assigned.insert(name);
             auto& os = body().emplace_back();
@@ -58,7 +58,7 @@ struct BB {
     }
 
     template<class Fn>
-    std::string assign(Tab tab, bool slotted, std::string name, Fn&& print_term) {
+    std::string assign(fe::Tab tab, bool slotted, std::string name, Fn&& print_term) {
         if (!assigned.contains(name)) {
             assigned.insert(name);
             auto& os = body().emplace_back();
@@ -646,7 +646,7 @@ std::string Emitter::emit_node(BB& bb, const Def* def, std::string node_name, bo
     if (!def->sym().empty() && vars_enabled_) {
         // 1) Emits a let-binding to the lambda body() and then emits the name of the binding in the lambda tail()
 
-        bb.assign(tab, slotted(), id(def), [&](Tab tab, auto& os) {
+        bb.assign(tab, slotted(), id(def), [&](fe::Tab tab, auto& os) {
             ++tab;
             tab.lnprint(os, "({}", node_name);
 
@@ -810,7 +810,7 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
                 print(os, "{}", op_val);
             print(os, ")");
         } else {
-            bb.assign(tab, slotted(), id(proxy), [&](Tab tab, auto& os) {
+            bb.assign(tab, slotted(), id(proxy), [&](fe::Tab tab, auto& os) {
                 ++tab;
                 tab.lnprint(os, "(proxy");
                 ++tab;

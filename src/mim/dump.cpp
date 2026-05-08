@@ -307,7 +307,7 @@ std::ostream& operator<<(std::ostream& os, Dump d) {
         return os << std::format("{} {}", Op::l(app->callee(), Prec::App), Op::r(app->arg(), Prec::App));
     } else if (auto [sigma, var] = d->isa_binder<Sigma>(); sigma) {
         size_t i  = 0;
-        auto elem = StreamFn{[&](std::ostream& os) -> std::ostream& {
+        auto elem = fe::StreamFn{[&](std::ostream& os) -> std::ostream& {
             auto sep = "";
             for (auto op : sigma->ops()) {
                 os << sep;
@@ -373,7 +373,7 @@ public:
 
     std::ostream& os;
     const Nest* nest;
-    Tab tab{"    "};
+    fe::Tab tab{"    "};
     unique_queue<MutSet> muts;
     DefSet defs;
 };

@@ -14,9 +14,6 @@ namespace mim {
 
 class Def;
 
-using fe::StreamFn;
-using fe::Tab;
-
 /// @name Formatted Output
 /// @anchor fmt
 /// Wrappers around `std::format` and `std::print` that match this project's API surface.
@@ -53,7 +50,7 @@ template<class T = std::logic_error, class... Args>
 ///@}
 
 /// @name out/err
-/// mim::print%s to `std::cout`/`std::cerr`; the *`ln` variants emit an additional `std::endl`.
+/// `std::format` to `std::cout`/`std::cerr`; the `*ln` variants append `std::endl`.
 ///@{
 // clang-format off
 template<class... Args> std::ostream& outf (std::format_string<Args...> fmt, Args&&... args) { return std::cout << std::format(fmt, std::forward<Args>(args)...);                }
