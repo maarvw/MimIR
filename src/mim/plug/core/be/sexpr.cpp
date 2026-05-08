@@ -33,7 +33,7 @@ struct BB {
     }
 
     template<class... Args>
-    std::string assign(Tab tab, bool slotted, std::string name, const char* s, Args&&... args) {
+    std::string assign(Tab tab, bool slotted, std::string name, std::format_string<Args...> s, Args&&... args) {
         if (!assigned.contains(name)) {
             assigned.insert(name);
             auto& os = body().emplace_back();
@@ -43,14 +43,14 @@ struct BB {
                 tab.lnprint(os, "{}", name);
                 tab.lnprint(os, "(scope");
                 ++tab;
-                tab.lnprint(os, s, std::forward<Args&&>(args)...);
+                tab.lnprint(os, s, std::forward<Args>(args)...);
                 --tab;
                 --tab;
             } else {
                 tab.lnprint(os, "(let");
                 ++tab;
                 tab.lnprint(os, "{}", name);
-                tab.lnprint(os, s, std::forward<Args&&>(args)...);
+                tab.lnprint(os, s, std::forward<Args>(args)...);
                 --tab;
             }
         }

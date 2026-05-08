@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
                 mod->add_implicit_imports(std::move(imports));
 
                 if (auto s = os[AST]) {
-                    Tab tab;
+                    Tab tab{"    "};
                     mod->stream(tab, *s);
                 }
 

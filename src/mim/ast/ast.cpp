@@ -58,7 +58,7 @@ AnnexInfo* AST::name2annex(Dbg dbg, sub_t* sub_id) {
 }
 
 void AST::bootstrap(Sym plugin, std::ostream& h) {
-    Tab tab;
+    Tab tab{"    "};
     tab.print(h, "#pragma once\n\n");
     tab.print(h, "#include <mim/axm.h>\n"
                  "#include <mim/plugin.h>\n\n");
@@ -70,7 +70,7 @@ void AST::bootstrap(Sym plugin, std::ostream& h) {
     plugin_t plugin_id = *Annex::mangle(plugin);
     std::vector<std::ostringstream> normalizers, outer_namespace;
 
-    tab.print(h, "static constexpr plugin_t Plugin_Id = 0x{x};\n\n", plugin_id);
+    tab.print(h, "static constexpr plugin_t Plugin_Id = 0x{:x};\n\n", plugin_id);
 
     const auto& unordered = plugin2annexes(plugin);
     std::deque<std::pair<Sym, AnnexInfo>> infos(unordered.begin(), unordered.end());
@@ -92,7 +92,7 @@ void AST::bootstrap(Sym plugin, std::ostream& h) {
         if (auto& subs = annex.subs; !subs.empty()) {
             for (const auto& aliases : subs) {
                 const auto& sub = aliases.front();
-                tab.print(h, "{} = 0x{x},\n", sub, ax_id++);
+                tab.print(h, "{} = 0x{:x},\n", sub, ax_id++);
                 for (size_t i = 1; i < aliases.size(); ++i) tab.print(h, "{} = {},\n", aliases[i], sub);
 
                 if (auto norm = annex.normalizer) {

@@ -144,6 +144,17 @@ public:
     friend std::ostream& operator<<(std::ostream&, Dump);
 };
 
+} // namespace
+} // namespace mim
+
+template<>
+struct std::formatter<mim::Op> : fe::ostream_formatter {};
+template<>
+struct std::formatter<mim::Dump> : fe::ostream_formatter {};
+
+namespace mim {
+namespace {
+
 auto ptrn(const Def* def, const Def* type) {
     return StreamFn{[=](std::ostream& os) -> std::ostream& {
         if (!def) return os << Op(type);
@@ -342,7 +353,7 @@ public:
 
     std::ostream& os;
     const Nest* nest;
-    Tab tab;
+    Tab tab{"    "};
     unique_queue<MutSet> muts;
     DefSet defs;
 };
@@ -396,7 +407,7 @@ void Dumper::dump(Def* mut) {
     ++tab;
     if (nest) recurse((*nest)[mut]);
     recurse(mut);
-    tab.print(os, "{, }\n", mut->ops());
+    tab.print(os, "{}\n", fe::join(mut->ops(), ", "));
     --tab;
     tab.print(os, "}};\n");
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <concepts>
+
 #include <functional>
 #include <iostream>
 #include <ostream>
@@ -8,6 +10,7 @@
 #include <string>
 
 #include <fe/assert.h>
+#include <fe/format.h>
 
 namespace mim {
 namespace detail {
@@ -98,15 +101,7 @@ auto elems(std::ostream& os, const auto& range) {
     return Elem(range, [&os](const auto& elem) { os << T(elem); });
 }
 
-/// Create function-wrapper objects amenable for `opeartor<<`.
-template<class F>
-struct StreamFn {
-    F f;
-    friend std::ostream& operator<<(std::ostream& os, const StreamFn& s) { return s.f(os); }
-};
-
-template<class F>
-StreamFn(F) -> StreamFn<F>;
+using fe::StreamFn;
 
 std::ostream& print(std::ostream& os, const char* s); ///< Base case.
 
@@ -217,64 +212,18 @@ template<class... Args> std::ostream& errln(const char* fmt, Args&&... args) { r
 // clang-format on
 ///@}
 
-/// Keeps track of indentation level.
-class Tab {
-public:
-    Tab(std::string_view tab = {"    "}, size_t indent = 0)
-        : tab_(tab)
-        , indent_(indent) {}
+using fe::Tab;
 
-    /// @name Getters
-    ///@{
-    size_t indent() const { return indent_; }
-    std::string_view tab() const { return tab_; }
-    ///@}
-
-    /// @name print
-    /// Wraps mim::print to prefix it with indentation.
-    /// @see @ref fmt "Formatted Output"
-    ///@{
-    template<class... Args>
-    std::ostream& print(std::ostream& os, const char* s, Args&&... args) {
-        for (size_t i = 0; i < indent_; ++i)
-            os << tab_;
-        return mim::print(os, s, std::forward<Args>(args)...);
-    }
-    /// Same as Tab::print but **prepends** a `std::endl` to @p os.
-    template<class... Args>
-    std::ostream& lnprint(std::ostream& os, const char* s, Args&&... args) {
-        return print(os << std::endl, s, std::forward<Args>(args)...);
-    }
-    /// Same as Tab::print but **appends** a `std::endl` to @p os.
-    template<class... Args>
-    std::ostream& println(std::ostream& os, const char* s, Args&&... args) {
-        return print(os, s, std::forward<Args>(args)...) << std::endl;
-    }
-    ///@}
-
-    // clang-format off
-    /// @name Creates a new Tab
-    ///@{
-    [[nodiscard]] Tab operator++(int) {                      return {tab_, indent_++}; }
-    [[nodiscard]] Tab operator--(int) { assert(indent_ > 0); return {tab_, indent_--}; }
-    [[nodiscard]] Tab operator+(size_t indent) const {                      return {tab_, indent_ + indent}; }
-    [[nodiscard]] Tab operator-(size_t indent) const { assert(indent_ > 0); return {tab_, indent_ - indent}; }
-    ///@}
-
-    /// @name Modifies this Tab
-    ///@{
-    Tab& operator++() {                      ++indent_; return *this; }
-    Tab& operator--() { assert(indent_ > 0); --indent_; return *this; }
-    Tab& operator+=(size_t indent) {                      indent_ += indent; return *this; }
-    Tab& operator-=(size_t indent) { assert(indent_ > 0); indent_ -= indent; return *this; }
-    Tab& operator=(size_t indent) { indent_ = indent; return *this; }
-    Tab& operator=(std::string_view tab) { tab_ = tab; return *this; }
-    ///@}
-    // clang-format on
-
-private:
-    std::string_view tab_;
-    size_t indent_ = 0;
-};
+class Def;
 
 } // namespace mim
+
+#ifndef DOXYGEN
+/// Format any pointer to a `mim::Def` (or subclass) via its `operator<<`.
+template<class T>
+requires std::derived_from<T, mim::Def>
+struct std::formatter<T*> : fe::ostream_formatter {};
+template<class T>
+requires std::derived_from<T, mim::Def>
+struct std::formatter<const T*> : fe::ostream_formatter {};
+#endif

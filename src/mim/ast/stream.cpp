@@ -18,6 +18,13 @@ struct S {
     friend std::ostream& operator<<(std::ostream& os, const S& s) { return s.node->stream(s.tab, os); }
 };
 
+} // namespace mim::ast
+
+template<>
+struct std::formatter<mim::ast::S> : fe::ostream_formatter {};
+
+namespace mim::ast {
+
 template<class T>
 struct R {
     R(Tab& tab, const Ptrs<T>& range)
@@ -31,7 +38,7 @@ struct R {
 };
 
 void Node::dump() const {
-    Tab tab;
+    Tab tab{"    "};
     stream(tab, std::cout) << std::endl;
 }
 
