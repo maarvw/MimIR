@@ -28,7 +28,7 @@ int compile(World& world, std::string ll, std::string out) {
     std::ofstream ofs(ll);
     emit(world, ofs);
     ofs.close();
-    auto cmd = fmt("clang \"{}\" -o \"{}\" -Wno-override-module", ll, out);
+    auto cmd = std::format("clang \"{}\" -o \"{}\" -Wno-override-module", ll, out);
     return sys::system(cmd);
 }
 

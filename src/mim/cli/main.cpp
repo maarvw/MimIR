@@ -207,10 +207,10 @@ int main(int argc, char** argv) {
             return EXIT_FAILURE;
         }
     } catch (const std::exception& e) {
-        errln("{}", e.what());
+        std::println(std::cerr, "{}", e.what());
         return EXIT_FAILURE;
     } catch (...) {
-        errln("error: unknown exception");
+        std::println(std::cerr, "error: unknown exception");
         return EXIT_FAILURE;
     }
 

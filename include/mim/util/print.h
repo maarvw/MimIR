@@ -1,9 +1,6 @@
 #pragma once
 
 #include <format>
-#include <iostream>
-#include <ostream>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -22,10 +19,6 @@ class Def;
 /// To join range elements with a custom separator, use `fe::join(range, sep)`.
 ///@{
 
-// clang-format off
-template<class... Args> std::string   fmt    (std::format_string<Args...> fmt, Args&&... args) { return std::format(fmt, std::forward<Args>(args)...); }
-// clang-format on
-
 /// Wraps `std::format` to throw `T` with a formatted message.
 template<class T = std::logic_error, class... Args>
 [[noreturn]] void error(std::format_string<Args...> fmt, Args&&... args) {
@@ -38,26 +31,15 @@ template<class T = std::logic_error, class... Args>
             (void)sizeof(condition); \
         } while (false)
 #else
-#    define assertf(condition, ...)                                  \
-        do {                                                         \
-            if (!(condition)) {                                      \
-                mim::errf("{}:{}: assertion: ", __FILE__, __LINE__); \
-                mim::errln(__VA_ARGS__);                             \
-                fe::breakpoint();                                    \
-            }                                                        \
+#    define assertf(condition, ...)                                                \
+        do {                                                                       \
+            if (!(condition)) {                                                    \
+                std::println(std::cerr, "{}:{}: assertion: ", __FILE__, __LINE__); \
+                std::println(std::cerr, __VA_ARGS__);                              \
+                fe::breakpoint();                                                  \
+            }                                                                      \
         } while (false)
 #endif
-///@}
-
-/// @name out/err
-/// `std::format` to `std::cout`/`std::cerr`; the `*ln` variants append `std::endl`.
-///@{
-// clang-format off
-template<class... Args> std::ostream& outf (std::format_string<Args...> fmt, Args&&... args) { return std::cout << std::format(fmt, std::forward<Args>(args)...);                }
-template<class... Args> std::ostream& errf (std::format_string<Args...> fmt, Args&&... args) { return std::cerr << std::format(fmt, std::forward<Args>(args)...);                }
-template<class... Args> std::ostream& outln(std::format_string<Args...> fmt, Args&&... args) { return std::cout << std::format(fmt, std::forward<Args>(args)...) << std::endl; }
-template<class... Args> std::ostream& errln(std::format_string<Args...> fmt, Args&&... args) { return std::cerr << std::format(fmt, std::forward<Args>(args)...) << std::endl; }
-// clang-format on
 ///@}
 
 } // namespace mim
