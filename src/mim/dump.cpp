@@ -11,7 +11,6 @@
 #include "mim/util/util.h"
 
 using namespace std::literals;
-using std::views::transform;
 
 // During dumping, we classify Defs according to the following logic:
 // * Inline: These Defs are *always* displayed with all of its operands "inline".
@@ -79,6 +78,10 @@ public:
         , is_left_(is_left) {}
     static Op l(const Def* def, Prec prec = Prec::Bot) { return {def, prec, true}; }
     static Op r(const Def* def, Prec prec = Prec::Bot) { return {def, prec, false}; }
+
+    static auto map(const auto& range) {
+        return fe::Join(range | std::views::transform([](auto op) { return Op(op); }));
+    }
 
     /// @name Getters
     ///@{
@@ -325,9 +328,9 @@ std::ostream& operator<<(std::ostream& os, Dump d) {
 
         return os << std::format("[{}]", elem);
     } else if (auto sigma = d->isa<Sigma>()) {
-        return os << std::format("[{}]", fe::Join(sigma->ops() | transform([](auto op) { return Op(op); })));
+        return os << std::format("[{}]", Op::map(sigma->ops()));
     } else if (auto tuple = d->isa<Tuple>()) {
-        return os << std::format("({})", fe::Join(tuple->ops() | transform([](auto op) { return Op(op); })));
+        return os << std::format("({})", Op::map(tuple->ops()));
     } else if (auto [arr, var] = d->isa_binder<Arr>(); arr) {
         return os << std::format("{}{}: {}; {}{}", al, var, Op(arr->arity()), Op(arr->body()), ar);
     } else if (auto arr = d->isa<Arr>()) {
@@ -337,18 +340,16 @@ std::ostream& operator<<(std::ostream& os, Dump d) {
     } else if (auto pack = d->isa<Pack>()) {
         return os << std::format("{}{}; {}{}", pl, Op(pack->arity()), Op(pack->body()), pr);
     } else if (auto proxy = d->isa<Proxy>()) {
-        return os << std::format(".proxy#{}#{} {}", proxy->pass(), proxy->tag(),
-                                 fe::Join(proxy->ops() | transform([](auto op) { return Op(op); })));
+        return os << std::format(".proxy#{}#{} {}", proxy->pass(), proxy->tag(), Op::map(proxy->ops()));
     } else if (auto bound = d->isa<Bound>()) {
         auto op = bound->isa<Join>() ? "∪" : "∩"; // TODO ascii
         if (auto mut = d->isa_mut()) print(os, "{}{}: {}", op, mut->unique_name(), Op(mut->type()));
-        return os << std::format("{}({})", op, fe::Join(bound->ops() | transform([](auto op) { return Op(op); })));
+        return os << std::format("{}({})", op, Op::map(bound->ops()));
     }
 
     // other
     if (d->flags() == 0) return os << std::format("({} {})", d->node_name(), fe::Join(d->ops()));
-    return os << std::format("({}#{} {})", d->node_name(), d->flags(),
-                             fe::Join(d->ops() | transform([](auto op) { return Op(op); })));
+    return os << std::format("({}#{} {})", d->node_name(), d->flags(), Op::map(d->ops()));
 }
 
 /*
