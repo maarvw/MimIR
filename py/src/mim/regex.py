@@ -4,7 +4,7 @@ import ctypes
 from typing import List
 
 from . import Def, Driver, Level
-from ._enums.regex import regex as _regex
+from ._plugins.regex import regex as _regex
 from .core import core
 from .plugin import MimPlugin
 

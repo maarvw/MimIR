@@ -47,19 +47,19 @@ add_custom_target(mim_py_stubs
 )
 add_dependencies(mim_py_stubs pymim mim_py_venv)
 
-# Main mim package: stage source, drop _mim.so plus generated enums/stubs in, build wheel, pip install.
+# Main mim package: stage source, drop _mim.so plus generated plugin metadata/stubs in, build wheel, pip install.
 set(_mim_py_main_stage  "${MIM_PY_STAGE}/main")
 set(_mim_py_main_wheels "${MIM_PY_WHEELS}/main")
-set(_mim_py_enum_stage  "${_mim_py_main_stage}/src/mim/_enums")
+set(_mim_py_plugin_stage "${_mim_py_main_stage}/src/mim/_plugins")
 set(_mim_py_stage_enum_commands
-    COMMAND "${CMAKE_COMMAND}" -E make_directory "${_mim_py_enum_stage}"
-    COMMAND "${CMAKE_COMMAND}" -E touch "${_mim_py_enum_stage}/__init__.py"
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${_mim_py_plugin_stage}"
+    COMMAND "${CMAKE_COMMAND}" -E touch "${_mim_py_plugin_stage}/__init__.py"
 )
 foreach(_plugin ${MIM_PLUGIN_LIST})
     list(APPEND _mim_py_stage_enum_commands
         COMMAND "${CMAKE_COMMAND}" -E copy
                 "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/mim/${_plugin}.py"
-                "${_mim_py_enum_stage}/${_plugin}.py"
+                "${_mim_py_plugin_stage}/${_plugin}.py"
     )
 endforeach()
 add_custom_target(mim_py_main

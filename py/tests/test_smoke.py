@@ -62,6 +62,6 @@ def test_world_call_is_monkey_patched():
     assert callable(getattr(mim.World, "call", None))
 
 
-def test_plugin_facades_delegate_to_generated_enums():
+def test_plugin_facades_delegate_to_generated_plugins():
     assert mim.core.bit2.and_ is not None
     assert mim.regex.lit is not None

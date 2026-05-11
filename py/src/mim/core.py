@@ -1,4 +1,4 @@
-from ._enums.core import core as _core
+from ._plugins.core import core as _core
 
 core = _core
 
