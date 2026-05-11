@@ -15,6 +15,7 @@
 #include "mim/util/dbg.h"
 #include "mim/util/log.h"
 #include "mim/util/span.h"
+
 namespace mim {
 
 template<class T>
@@ -628,7 +629,6 @@ public:
     const Def* call(flags_t id, Args&&... args) {
         return call<Normalize>(annex(id), std::forward<Args>(args)...);
     }
-
     ///@}
 
     /// @name Vars & Muts

@@ -75,8 +75,7 @@ public:
     template<class... Args> Error& error(Loc loc, std::format_string<Args...> s, Args&&... args) { ++num_errors_;   return msg(loc, Tag::Error, s, std::forward<Args>(args)...); }
     template<class... Args> Error& warn (Loc loc, std::format_string<Args...> s, Args&&... args) { ++num_warnings_; return msg(loc, Tag::Warn,  s, std::forward<Args>(args)...); }
     template<class... Args> Error& note (Loc loc, std::format_string<Args...> s, Args&&... args) {
-        assert(num_errors() > 0 || num_warnings() > 0); /*                                     */ ++num_notes_;    return msg(loc, Tag::Note,  s, std::forward<Args>(args)...);
-    }
+        assert(num_errors() > 0 || num_warnings() > 0); /*                                    */   ++num_notes_;    return msg(loc, Tag::Note,  s, std::forward<Args>(args)...); }
     // clang-format on
     ///@}
 
