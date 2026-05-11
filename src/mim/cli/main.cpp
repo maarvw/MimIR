@@ -168,7 +168,7 @@ int main(int argc, char** argv) {
                     ast.error().ack();
                     auto plugin = world.sym(fs::path{path}.filename().replace_extension().string());
                     if (h) ast.bootstrap(plugin, *h);
-                    if (py) ast.bootstrap_python(plugin, *py);
+                    if (py) ast.bootstrap_py(plugin, *py);
                     return EXIT_SUCCESS;
                 }
 

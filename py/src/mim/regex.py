@@ -81,10 +81,7 @@ class RegBuilder(MimPlugin):
         ).projs(3)
         last_elem_ptr = self.world.call("%mem.lea", [to_match, pos])
         final_mem, last_elem = self.world.call("%mem.load", [regex_mem, last_elem_ptr]).projs(2)
-        eq_zero = self.world.call_by_id(
-            core.icmp.xyglEe,
-            [last_elem, self.world.lit_i8(0)],
-        )
+        eq_zero = self.world.call(core.icmp.e, [last_elem, self.world.lit_i8(0)])
 
         matched_and_end = self.world.call(
             "%core.bit2.and_",

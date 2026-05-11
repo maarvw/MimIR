@@ -90,11 +90,12 @@ void AST::bootstrap(Sym plugin, std::ostream& h) {
 
         if (auto& subs = annex.subs; !subs.empty()) {
             for (const auto& aliases : subs) {
-                const auto& sub = aliases.front();
-                std::println(h, "{}{} = 0x{:x},", tab, sub, ax_id++);
-                for (size_t i = 1; i < aliases.size(); ++i) std::println(h, "{}{} = {},", tab, aliases[i], sub);
+                auto id = ax_id++;
+                for (const auto alias : aliases)
+                    std::println(h, "{}{} = 0x{:x},", tab, alias, id);
 
                 if (auto norm = annex.normalizer) {
+                    auto sub = aliases.front();
                     auto& os = normalizers.emplace_back();
                     std::print(os, "normalizers[flags_t({}::{})] = &{}<{}::{}>;", sym.tag, sub, norm, sym.tag, sub);
                 }
@@ -163,7 +164,7 @@ void AST::bootstrap(Sym plugin, std::ostream& h) {
     std::println(h, "{}\n#endif", tab);
 }
 
-void AST::bootstrap_python(Sym plugin, std::ostream& h) {
+void AST::bootstrap_py(Sym plugin, std::ostream& h) {
     fe::Tab tab;
     plugin_t plugin_id = *Annex::mangle(plugin);
 
@@ -188,28 +189,23 @@ void AST::bootstrap_python(Sym plugin, std::ostream& h) {
             annexes_with_subs.push_back(annex);
     }
     std::print(h, "\n");
-    if (annexes_with_subs.size() != 0) bootstrap_python_subs(annexes_with_subs, plugin, tab, h);
-}
 
-void AST::bootstrap_python_subs(std::vector<mim::ast::AnnexInfo> annexes_with_subs,
-                                Sym plugin,
-                                fe::Tab& tab,
-                                std::ostream& h) {
-    plugin_t plugin_id = *Annex::mangle(plugin);
-    for (const auto& annex : annexes_with_subs) {
-        flags_t ax_id = plugin_id | (annex.id.tag << 8u);
-        std::println(h, "{}class {}(IntEnum):", tab, annex.sym.tag);
-        ++tab;
+    if (!annexes_with_subs.empty()) {
+        plugin_t plugin_id = *Annex::mangle(plugin);
+        for (const auto& annex : annexes_with_subs) {
+            flags_t ax_id = plugin_id | (annex.id.tag << 8u);
+            std::println(h, "{}class {}(IntEnum):", tab, annex.sym.tag);
+            ++tab;
 
-        for (const auto& aliases : annex.subs) {
-            const auto& sub = aliases.front();
-            std::println(h, "{}{} = 0x{:x}", tab, sub, ax_id++);
-            for (size_t i = 1; i < aliases.size(); ++i)
-                std::println(h, "{}{} = {}", tab, aliases[i], sub);
+            for (const auto& aliases : annex.subs) {
+                auto id = ax_id++;
+                for (const auto alias : aliases)
+                    std::println(h, "{}{} = 0x{:x}", tab, alias, id);
+            }
+
+            --tab;
+            std::print(h, "\n\n");
         }
-
-        --tab;
-        std::print(h, "\n\n");
     }
 }
 
