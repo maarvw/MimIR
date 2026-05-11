@@ -2,7 +2,7 @@ import mim_py as mim
 from pathlib import Path
 
 from mim_py.mim_regex import MimRegex, RegBuilder
-from mim_py.regex_plug import regex
+from mim_py.mim_enums.regex_plug import regex
 d = mim.Driver()
 d.add_search_path(Path("../build/lib/mim/"))
 b = RegBuilder(d, "regex", mim.Level.Error)
