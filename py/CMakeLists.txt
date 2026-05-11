@@ -35,18 +35,28 @@ add_custom_target(mim_py_venv
 
 # Generate a stub for the internal pybind11 module.
 set(_mim_py_stubs_build "${CMAKE_BINARY_DIR}/mim_py_stubs")
+set(_mim_py_stub_runtime_commands)
+if(WIN32)
+    set(_mim_py_stub_runtime_commands
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:pymim>
+                "${_mim_py_stubs_build}"
+    )
+endif()
 add_custom_target(mim_py_stubs
     COMMAND "${CMAKE_COMMAND}" -E rm -rf "${_mim_py_stubs_build}"
     COMMAND "${CMAKE_COMMAND}" -E make_directory "${_mim_py_stubs_build}"
     COMMAND "${CMAKE_COMMAND}" -E copy
             "$<TARGET_FILE:pymim>"
             "${_mim_py_stubs_build}/$<TARGET_FILE_NAME:pymim>"
+    ${_mim_py_stub_runtime_commands}
     COMMAND "${CMAKE_COMMAND}" -E env
             "PYTHONPATH=${_mim_py_stubs_build}"
             "${MIM_PY_PYTHON}" -m pybind11_stubgen
                 --output-dir "${_mim_py_stubs_build}"
                 _mim
     COMMENT "mim_py: generating _mim.pyi via pybind11-stubgen"
+    COMMAND_EXPAND_LISTS
     VERBATIM
 )
 add_dependencies(mim_py_stubs pymim mim_py_venv)
@@ -55,6 +65,14 @@ add_dependencies(mim_py_stubs pymim mim_py_venv)
 set(_mim_py_main_stage  "${MIM_PY_STAGE}/main")
 set(_mim_py_main_wheels "${MIM_PY_WHEELS}/main")
 set(_mim_py_plugin_stage "${_mim_py_main_stage}/src/mim/_plugins")
+set(_mim_py_main_runtime_commands)
+if(WIN32)
+    set(_mim_py_main_runtime_commands
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:pymim>
+                "${_mim_py_main_stage}/src/mim"
+    )
+endif()
 set(_mim_py_stage_plugin_commands
     COMMAND "${CMAKE_COMMAND}" -E make_directory "${_mim_py_plugin_stage}"
     COMMAND "${CMAKE_COMMAND}" -E touch "${_mim_py_plugin_stage}/__init__.py"
@@ -75,6 +93,7 @@ add_custom_target(mim_py_main
     COMMAND "${CMAKE_COMMAND}" -E copy
             "$<TARGET_FILE:pymim>"
             "${_mim_py_main_stage}/src/mim/$<TARGET_FILE_NAME:pymim>"
+    ${_mim_py_main_runtime_commands}
     COMMAND "${CMAKE_COMMAND}" -E copy
             "${_mim_py_stubs_build}/_mim.pyi"
             "${_mim_py_main_stage}/src/mim/_mim.pyi"
@@ -86,6 +105,7 @@ add_custom_target(mim_py_main
             "-DWHEEL_DIR=${_mim_py_main_wheels}"
             -P "${MIM_PY_INSTALL_SCRIPT}"
     COMMENT "mim_py: building & installing main package"
+    COMMAND_EXPAND_LISTS
     VERBATIM
 )
 add_dependencies(mim_py_main pymim mim_all_plugins mim_py_venv mim_py_stubs)
@@ -119,10 +139,22 @@ endforeach()
 add_custom_target(mim_py ALL)
 add_dependencies(mim_py mim_py_main ${_mim_py_plugin_targets})
 
-add_custom_target(test-py
+set(_mim_py_test_command
     COMMAND "${MIM_PY_PYTHON}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_tests.py"
+)
+if(WIN32)
+    set(_mim_py_test_command
+        COMMAND "${CMAKE_COMMAND}" -E env
+                "PATH=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}\;${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/mim\;$ENV{PATH}"
+                "${MIM_PY_PYTHON}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/run_tests.py"
+    )
+endif()
+
+add_custom_target(test-py
+    ${_mim_py_test_command}
     DEPENDS mim_py_main
     COMMENT "mim_py: running Python tests"
+    COMMAND_EXPAND_LISTS
     USES_TERMINAL
     VERBATIM
 )
