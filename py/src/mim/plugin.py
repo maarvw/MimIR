@@ -20,7 +20,7 @@ class MimPlugin(ABC):
     def register_func(self, name: str, input_types: list, return_type):
         self._registered_functions[name] = (input_types, return_type)
 
-    def jit(self, ) -> dict[str, MimCallable]:
+    def jit(self) -> dict[str, MimCallable]:
         self.build()
 
         self.driver.world().optimize()
