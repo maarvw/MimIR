@@ -37,8 +37,7 @@ void init_world(py::module_& m) {
             },
             py::return_value_policy::reference_internal)
         .def("type_i32", &mim::World::type_i32, py::return_value_policy::reference_internal)
-        .def("sym", static_cast<fe::Sym (World::*)(std::string_view)>(&mim::World::sym),
-             py::return_value_policy::reference_internal)
+        .def("sym", static_cast<fe::Sym (World::*)(std::string_view)>(&mim::World::sym))
         .def(
             "mut_fun2",
             [](mim::World& w, std::vector<mim::Def*> dom, std::vector<mim::Def*> codom) {
