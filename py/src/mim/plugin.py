@@ -26,7 +26,7 @@ class MimPlugin(ABC):
         self.driver.world().optimize()
         self.driver.backend("ll", self.libname + ".ll", self.driver.world())
 
-        jit = JIT(self.libname)
+        jit = JIT(self.libname, self._registered_functions.keys())
         lib = jit.compile_and_load()
 
         callables = {}
