@@ -6,6 +6,7 @@ re-exports in mim/__init__.py.
 from __future__ import annotations
 
 import importlib
+import io
 
 import mim
 import pytest
@@ -38,8 +39,11 @@ EXPECTED_FROM_WRAPPER = [
     "MimRegex",
     "RegBuilder",
     "JIT",
+    "catch_mim_errors",
     "call",
+    "guard_mim_errors",
     "plug",
+    "print_mim_error",
 ]
 
 EXPECTED_PLUGIN_FACADES = [
@@ -100,6 +104,43 @@ def test_def_subclasses():
 
 def test_mim_error_is_exception():
     assert issubclass(mim.MIM_Error, Exception)
+
+
+def test_print_mim_error_writes_message():
+    buffer = io.StringIO()
+    mim.print_mim_error(mim.MIM_Error("boom"), file=buffer)
+    assert buffer.getvalue() == "boom\n"
+
+
+def test_guard_mim_errors_prints_and_suppresses():
+    buffer = io.StringIO()
+
+    with mim.guard_mim_errors(file=buffer):
+        raise mim.MIM_Error("boom")
+
+    assert buffer.getvalue() == "boom\n"
+
+
+def test_guard_mim_errors_reraises_when_requested():
+    buffer = io.StringIO()
+
+    with pytest.raises(mim.MIM_Error) as exc_info:
+        with mim.guard_mim_errors(file=buffer, reraise=True):
+            raise mim.MIM_Error("boom")
+
+    assert "boom" in str(exc_info.value)
+    assert buffer.getvalue() == "boom\n"
+
+
+def test_catch_mim_errors_prints_and_returns_default():
+    buffer = io.StringIO()
+
+    @mim.catch_mim_errors(default="fallback", file=buffer)
+    def fail():
+        raise mim.MIM_Error("boom")
+
+    assert fail() == "fallback"
+    assert buffer.getvalue() == "boom\n"
 
 
 def test_world_call_is_monkey_patched():
