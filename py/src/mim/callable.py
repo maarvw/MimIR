@@ -7,7 +7,6 @@ class MimCallable:
         self.name = name
         self.input_types: list[type] = list(input_types)
         self.return_type = return_type
-        self.return_types = return_type
         self.function_ptr = function_ptr
         self.function_ptr.argtypes = self.input_types
         self.function_ptr.restype = return_type

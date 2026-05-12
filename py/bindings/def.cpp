@@ -24,7 +24,7 @@ void init_def(py::module_& m) {
             if (py::isinstance<py::tuple>(index)) {
                 auto tuple = index.cast<py::tuple>();
                 if (tuple.size() == 2) return d.proj(tuple[0].cast<nat_t>(), tuple[1].cast<nat_t>());
-                throw py::index_error("tuple index must be (arity, index)");
+                throw py::index_error("tuple index must have exactly 2 elements (arity, index)");
             }
             throw py::index_error("index must be int or (arity, index)");
         }, py::return_value_policy::reference_internal)
