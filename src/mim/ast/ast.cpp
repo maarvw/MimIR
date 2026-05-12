@@ -194,7 +194,7 @@ void AST::bootstrap_py(Sym plugin, std::ostream& h) {
         plugin_t plugin_id = *Annex::mangle(plugin);
         for (const auto& annex : annexes_with_subs) {
             flags_t ax_id = plugin_id | (annex.id.tag << 8u);
-            std::println(h, "{}class {}(IntEnum):", tab, annex.sym.tag);
+            std::println(h, "class _{}_{}(IntEnum):", plugin, annex.sym.tag);
             ++tab;
 
             for (const auto& aliases : annex.subs) {
@@ -204,7 +204,7 @@ void AST::bootstrap_py(Sym plugin, std::ostream& h) {
             }
 
             --tab;
-            std::print(h, "\n\n");
+            std::println(h, "\n{}.{} = _{}_{}\n", plugin, annex.sym.tag, plugin, annex.sym.tag);
         }
     }
 }
