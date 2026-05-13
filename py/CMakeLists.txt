@@ -1,4 +1,4 @@
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
+find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
 add_subdirectory(bindings)
 
 set(MIM_PY_VENV "${CMAKE_BINARY_DIR}/.venv")
@@ -10,14 +10,14 @@ endif()
 set(MIM_PY_STAGE "${CMAKE_BINARY_DIR}/mim_py_stage/main")
 
 execute_process(
-    COMMAND "${Python3_EXECUTABLE}" -c
+    COMMAND "${Python_EXECUTABLE}" -c
             "import os, sys; print(os.path.realpath(getattr(sys, '_base_executable', sys.executable) or sys.executable))"
     OUTPUT_VARIABLE MIM_PY_BOOTSTRAP_PYTHON
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 if(NOT EXISTS "${MIM_PY_BOOTSTRAP_PYTHON}")
     message(FATAL_ERROR
-        "Could not determine a bootstrap Python interpreter from ${Python3_EXECUTABLE}"
+        "Could not determine a bootstrap Python interpreter from ${Python_EXECUTABLE}"
     )
 endif()
 
@@ -28,16 +28,17 @@ add_custom_command(
     COMMAND "${CMAKE_COMMAND}" -E rm -rf "${MIM_PY_VENV}"
     COMMAND "${MIM_PY_BOOTSTRAP_PYTHON}" -m venv "${MIM_PY_VENV}"
     COMMAND "${MIM_PY_PYTHON}" -m pip install --quiet --upgrade pip setuptools wheel
-    COMMAND "${MIM_PY_PYTHON}" -m pip install --quiet pytest pybind11-stubgen
+    COMMAND "${MIM_PY_PYTHON}" -m pip install --quiet pytest
     COMMAND "${CMAKE_COMMAND}" -E touch "${MIM_PY_VENV_STAMP}"
     COMMENT "mim_py: creating venv at ${MIM_PY_VENV}"
     VERBATIM
 )
 add_custom_target(mim_py_venv DEPENDS "${MIM_PY_VENV_STAMP}")
 
-# Generate a stub for the internal pybind11 module.
+# Generate a stub for the internal nanobind module.
 set(MIM_PY_STUBS_DIR "${CMAKE_BINARY_DIR}/mim_py_stubs")
 set(MIM_PY_STUB_FILE "${MIM_PY_STUBS_DIR}/_mim.pyi")
+set(MIM_PY_NANOBIND_STUBGEN "${CMAKE_SOURCE_DIR}/submodules/nanobind/src/stubgen.py")
 set(_mim_py_stub_runtime_commands)
 if(WIN32)
     set(_mim_py_stub_runtime_commands
@@ -56,11 +57,12 @@ add_custom_command(
     ${_mim_py_stub_runtime_commands}
     COMMAND "${CMAKE_COMMAND}" -E env
             "PYTHONPATH=${MIM_PY_STUBS_DIR}"
-            "${MIM_PY_PYTHON}" -m pybind11_stubgen
-                --output-dir "${MIM_PY_STUBS_DIR}"
-                _mim
-    DEPENDS pymim "${MIM_PY_VENV_STAMP}"
-    COMMENT "mim_py: generating _mim.pyi via pybind11-stubgen"
+            "${MIM_PY_PYTHON}" "${MIM_PY_NANOBIND_STUBGEN}"
+                -q
+                -m _mim
+                -o "${MIM_PY_STUB_FILE}"
+    DEPENDS pymim "${MIM_PY_VENV_STAMP}" "${MIM_PY_NANOBIND_STUBGEN}"
+    COMMENT "mim_py: generating _mim.pyi via nanobind stubgen"
     COMMAND_EXPAND_LISTS
     VERBATIM
 )

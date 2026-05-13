@@ -98,7 +98,7 @@ if(MIM_BUILD_DOCS)
 endif()
 
 if(MIM_BUILD_PYTHON)
-    add_subdirectory(submodules/pybind11)
+    add_subdirectory(submodules/nanobind)
     add_subdirectory(py)
 endif()
 

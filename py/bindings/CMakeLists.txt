@@ -1,4 +1,4 @@
-pybind11_add_module(pymim
+nanobind_add_module(pymim
     driver.cpp
     world.cpp
     sym.cpp

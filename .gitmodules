@@ -13,7 +13,6 @@
 [submodule "lyra"]
 	path = submodules/lyra
 	url = ../../bfgroup/lyra.git
-[submodule "submodules/pybind11"]
-	path = submodules/pybind11
-	url = ../../pybind/pybind11
-	branch = stable
+[submodule "submodules/nanobind"]
+	path = submodules/nanobind
+	url = ../../wjakob/nanobind.git

@@ -1,12 +1,11 @@
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
 
 #include <mim/ast/ast.h>
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
 namespace mim::ast {
 
-void init_ast(py::module_& m) { py::class_<mim::ast::AST>(m, "AST").def(py::init<>()).def(py::init<mim::World&>()); }
+void init_ast(nb::module_& m) { nb::class_<mim::ast::AST>(m, "AST").def(nb::init<>()).def(nb::init<mim::World&>()); }
 
 } // namespace mim::ast

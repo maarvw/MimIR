@@ -1,31 +1,31 @@
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
 namespace mim {
-void init_world(py::module_&);
-void init_driver(py::module_&);
-void init_sym(py::module_&);
-void init_flags(py::module_&);
-void init_log(py::module_&);
-void init_lam(py::module_&);
-void init_pi(py::module_&);
-void init_def(py::module_&);
-void init_lit(py::module_&);
-void register_error(py::module_&);
+void init_world(nb::module_&);
+void init_driver(nb::module_&);
+void init_sym(nb::module_&);
+void init_flags(nb::module_&);
+void init_log(nb::module_&);
+void init_lam(nb::module_&);
+void init_pi(nb::module_&);
+void init_def(nb::module_&);
+void init_lit(nb::module_&);
+void register_error(nb::module_&);
 } // namespace mim
 
 namespace mim::ast {
-void init_ast(py::module_&);
-void init_parser(py::module_&);
+void init_ast(nb::module_&);
+void init_parser(nb::module_&);
 } // namespace mim::ast
 
 namespace fe {
-void init_sym(py::module_&);
-void init_sym_pool(py::module_&);
+void init_sym(nb::module_&);
+void init_sym_pool(nb::module_&);
 } // namespace fe
 
-PYBIND11_MODULE(_mim, m) {
+NB_MODULE(_mim, m) {
     // Register foundational types first so World's method signatures resolve
     // to Python class names instead of raw C++ spellings ("mim::Lit" -> "Lit").
     // Please consider The ordering for future added Types.

@@ -1,12 +1,11 @@
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
 
 #include <mim/util/dbg.h>
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
 namespace mim {
 
-void register_error(py::module_& m) { py::register_exception<mim::Error>(m, "MIM_Error"); }
+void register_error(nb::module_& m) { nb::exception<mim::Error>(m, "MIM_Error"); }
 
 } // namespace mim

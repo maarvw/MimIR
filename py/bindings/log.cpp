@@ -1,14 +1,13 @@
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
 
 #include <mim/util/log.h>
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
 namespace mim {
 
-void init_log(py::module_& m) {
-    py::enum_<mim::Log::Level>(m, "Level")
+void init_log(nb::module_& m) {
+    nb::enum_<mim::Log::Level>(m, "Level")
         .value("Error", mim::Log::Level::Error)
         .value("Warn", mim::Log::Level::Warn)
         .value("Info", mim::Log::Level::Info)
@@ -16,12 +15,10 @@ void init_log(py::module_& m) {
         .value("Debug", mim::Log::Level::Debug)
         .export_values();
 
-    py::class_<mim::Log>(m, "Log")
-        .def(py::init<mim::Flags&>())
-        .def("set", static_cast<Log& (Log::*)(Log::Level)>(&mim::Log::set), py::return_value_policy::reference)
-        .def(
-            "set_stdout", [](mim::Log& self) -> mim::Log& { return self.set(&std::cout); },
-            py::return_value_policy::reference);
+    nb::class_<mim::Log>(m, "Log")
+        .def(nb::init<mim::Flags&>())
+        .def("set", static_cast<Log& (Log::*)(Log::Level)>(&mim::Log::set), nb::rv_policy::reference)
+        .def("set_stdout", [](mim::Log& self) -> mim::Log& { return self.set(&std::cout); }, nb::rv_policy::reference);
 }
 
 } // namespace mim

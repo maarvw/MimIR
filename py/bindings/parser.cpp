@@ -1,15 +1,15 @@
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/stl/string.h>
 
 #include <mim/ast/parser.h>
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
 namespace mim::ast {
 
-void init_parser(py::module_& m) {
-    py::class_<mim::ast::Parser, std::unique_ptr<mim::ast::Parser, py::nodelete>>(m, "Parser")
-        .def(py::init<mim::ast::AST&>())
+void init_parser(nb::module_& m) {
+    nb::class_<mim::ast::Parser>(m, "Parser", nb::never_destruct())
+        .def(nb::init<mim::ast::AST&>())
         .def("plugin", [](mim::ast::Parser& p, const std::string plug) {
             auto& ast = p.ast();
             if (auto mod = p.plugin(plug)) mod->compile(ast);
