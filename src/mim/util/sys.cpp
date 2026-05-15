@@ -24,31 +24,27 @@ using namespace std::string_literals;
 
 namespace mim::sys {
 
-std::optional<fs::path> path_to_curr_exe() {
-    std::vector<char> path_buffer;
-#ifdef __APPLE__
-    uint32_t read = 0;
-    _NSGetExecutablePath(nullptr, &read); // get size
-    path_buffer.resize(read + 1);
-    if (_NSGetExecutablePath(path_buffer.data(), &read) != 0) return {};
-    return fs::path{path_buffer.data()};
-#elif defined(_WIN32)
-    size_t read = 0;
-    do {
-        // start with 256 (almost MAX_PATH) and grow exp
-        path_buffer.resize(std::max(path_buffer.size(), static_cast<size_t>(128)) * 2);
-        read = GetModuleFileNameA(nullptr, path_buffer.data(), static_cast<DWORD>(path_buffer.size()));
-    } while (read == path_buffer.size()); // if equal, the buffer was too small.
+std::optional<fs::path> path_to_curr_libmim() {
+#if defined(_WIN32)
+    HMODULE mod = nullptr;
+    auto flags  = GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT;
+    if (!GetModuleHandleExW(flags, reinterpret_cast<LPCWSTR>(&path_to_curr_libmim), &mod)) return {};
 
-    if (read != 0) {
-        path_buffer.resize(read + 1);
-        path_buffer.back() = 0;
-        return fs::path{path_buffer.data()};
-    }
-#else  // Linux only..
-    if (fs::exists("/proc/self/exe")) return fs::canonical("/proc/self/exe");
-#endif // __APPLE__
+    wchar_t buf[MAX_PATH];
+    DWORD len = GetModuleFileNameW(mod, buf, MAX_PATH);
+    if (len == 0) return {};
+
+    return fs::weakly_canonical(fs::path(buf));
+#elif defined(__APPLE__) || defined(__linux__)
+    Dl_info info;
+    if (dladdr(reinterpret_cast<void*>(&path_to_curr_libmim), &info) == 0) return {};
+
+    if (!info.dli_fname) return {};
+
+    return fs::weakly_canonical(fs::path(info.dli_fname));
+#else
     return {};
+#endif
 }
 
 // see https://stackoverflow.com/a/478960
