@@ -58,7 +58,6 @@ void init_world(nb::module_& m) {
         .def("arr",     [](World& w, Def* arity, Def* body) { return w.arr(arity, body); }, nb::rv_policy::reference_internal)
         .def("optimize", [](World& w) { optimize(w); })
         .def("dot", static_cast<void (World::*)(const char*, bool, bool) const>(&World::dot))
-        .def("mut_con", [](World& w, DefVector doms) { return w.mut_con(Defs(doms)); }, nb::rv_policy::reference_internal)
         .def("annex", [](World& w, uint64_t id) { return w.annex(id); }, nb::rv_policy::reference_internal);
     // clang-format on
 }

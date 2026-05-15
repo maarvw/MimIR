@@ -10,7 +10,7 @@ def test_world(world):
     m2 = world.mut_con([world.type_bool(), world.type_i8()])
     m3 = world.mut_con([world.type_bool(), world.type_i8(), world.type_i32()])
     lit = world.lit_i8(0)
-    lit.dump() # don't raise
+    lit.dump()  # don't raise
     assert isinstance(lit.world(), mim.World)
     assert isinstance(m1.set("named"), mim.Def)
     assert m3.var().num_projs() == 3
