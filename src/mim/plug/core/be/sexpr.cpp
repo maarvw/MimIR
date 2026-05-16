@@ -403,6 +403,7 @@ std::string Emitter::emit_var(BB& bb, const Def* var, const Def* type, bool meta
     // We assume that the depth of projections for rule meta vars is at most one so
     // (a: Nat, b: Bool) is okay but (a: [b: Nat]) is not.
     if (slotted() && meta_var) {
+        toggle_slots();
         auto projs = var->projs();
         if (projs.size() == 1 || std::ranges::all_of(projs, [](auto proj) { return proj->sym().empty(); }))
             std::print(os, "\n{}(cons (metavar {} {}) nil)", tab, id(var), emit_type(bb, type));
@@ -422,6 +423,7 @@ std::string Emitter::emit_var(BB& bb, const Def* var, const Def* type, bool meta
             }
             std::print(os, "{}", emit_cons(meta_vars));
         }
+        toggle_slots();
     }
 
     else if (slotted()) {
@@ -529,9 +531,8 @@ std::string Emitter::emit_cons_type(BB& bb, View<const Def*> ops) {
 }
 
 std::string Emitter::emit_type(BB& bb, const Def* type) {
-    if (auto i = types_.find(type); i != types_.end()) return i->second;
-
     std::ostringstream os;
+
     if (type->isa<Nat>()) {
         std::print(os, "Nat");
     } else if (auto size = Idx::isa(type)) {
@@ -653,7 +654,7 @@ std::string Emitter::emit_type(BB& bb, const Def* type) {
         fe::unreachable();
     }
 
-    return types_[type] = os.str();
+    return os.str();
 }
 
 // This is primarily needed because slotted-egraphs don't support
@@ -822,12 +823,18 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
         assert("false" && "TODO no vars in immutable Rule");
 
     } else if (auto rule = def->isa_mut<Rule>()) {
-        toggle_slots();
+        // Rules should not have type annotations anywhere and just toggling annotations
+        // won't be enough to ensure that because they might be toggled on again via arr in emit_type
+        bool is_typed = typed_;
+        if (is_typed) typed_ = false;
         auto meta_var_val = emit_var(bb, rule->var(), rule->dom(), true);
-        auto lhs_val      = emit_bb(bb, rule->lhs());
-        auto rhs_val      = emit_bb(bb, rule->rhs());
-        auto guard_val    = emit_bb(bb, rule->guard());
         toggle_slots();
+        auto lhs_val   = emit_bb(bb, rule->lhs());
+        auto rhs_val   = emit_bb(bb, rule->rhs());
+        auto guard_val = emit_bb(bb, rule->guard());
+        toggle_slots();
+        if (is_typed) typed_ = true;
+
         std::print(os, "\n{}{}", tab, id(rule, true));
         std::print(decls_, "(rule {} {} {} {} {})\n\n", indent(1, id(rule)), indent(1, meta_var_val),
                    indent(1, lhs_val), indent(1, rhs_val), indent(1, guard_val));
