@@ -616,8 +616,12 @@ std::string Emitter::emit_type(BB& bb, const Def* type) {
         std::print(os, "(app {} {})", emit_type(bb, app->callee()), emit_type(bb, app->arg()));
     } else if (auto axm = type->isa<Axm>()) {
         std::print(os, "{}", id(axm));
-        if (!world().flags2annex().contains(axm->flags()))
-            std::print(decls_, "(axm {} {})\n\n", id(axm), emit_type(bb, axm->type()));
+        if (!world().flags2annex().contains(axm->flags())) {
+            if (typed()) std::print(decls_, "(@ {}\n", emit_type(bb, axm->type()));
+            std::print(decls_, "(axm {} {}", id(axm), emit_type(bb, axm->type()));
+            if (typed()) std::print(decls_, ")");
+            std::print(decls_, ")\n\n");
+        }
     } else if (auto var = type->isa<Var>()) {
         std::print(os, "{}", id(var, true));
     } else if (auto hole = type->isa<Hole>()) {
@@ -702,6 +706,16 @@ std::string Emitter::emit_node(BB& bb, const Def* def, std::string node_name, bo
     // This is a bit of an edge case? because the ops of a pack don't contain its arity
     if (auto pack = def->isa<Pack>())
         if (auto arity_val = emit_bb(bb, pack->arity()); !arity_val.empty()) op_vals.push_back(arity_val);
+
+    // Same thing here, the ops don't contain pass and tag
+    if (auto proxy = def->isa<Proxy>()) {
+        std::ostringstream pass;
+        std::ostringstream tag;
+        std::print(pass, "\n{}", proxy->pass());
+        std::print(tag, "\n{}", proxy->tag());
+        op_vals.push_back(pass.str());
+        op_vals.push_back(tag.str());
+    }
 
     for (auto op : def->ops())
         if (auto op_val = emit_bb(bb, op); !op_val.empty()) op_vals.push_back(op_val);
@@ -800,8 +814,12 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
 
     } else if (auto axm = def->isa<Axm>()) {
         std::print(os, "\n{}{}", tab, id(axm));
-        if (!world().flags2annex().contains(axm->flags()))
-            std::print(decls_, "(axm {} {})\n\n", id(axm), emit_type(bb, axm->type()));
+        if (!world().flags2annex().contains(axm->flags())) {
+            if (typed()) std::print(decls_, "(@ {}\n", emit_type(bb, axm->type()));
+            std::print(decls_, "(axm {} {}", id(axm), emit_type(bb, axm->type()));
+            if (typed()) std::print(decls_, ")");
+            std::print(decls_, ")\n\n");
+        }
 
     } else if (auto bot = def->isa<Bot>()) {
         if (bot->sym().empty())
@@ -849,45 +867,7 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
         std::print(os, "{}", emit_node(bb, match, "match", true));
 
     } else if (auto proxy = def->isa<Proxy>()) {
-        auto type_val = emit_bb(bb, proxy->type());
-        auto pass_val = proxy->pass();
-        auto tag_val  = proxy->tag();
-        std::vector<std::string> op_vals;
-        for (auto op : proxy->ops())
-            if (auto op_val = emit_bb(bb, op); !op_val.empty()) op_vals.push_back(op_val);
-
-        if (proxy->sym().empty()) {
-            std::print(os, "\n{}(proxy", tab);
-            std::print(os, "{}", type_val);
-            // pass_val and tag_val are not emitted via emit_bb and therefore have no
-            // leading newlines and indentation levels so we add those here
-            ++tab;
-            std::print(os, "\n{}{}", tab, pass_val);
-            std::print(os, "\n{}{}", tab, tag_val);
-            --tab;
-            // TODO: variadic ops as cons for slotted
-            for (auto op_val : op_vals)
-                std::print(os, "{}", op_val);
-            std::print(os, ")");
-        } else {
-            bb.assign(tab, slotted(), id(proxy), [&](fe::Tab tab, auto& os) {
-                ++tab;
-                std::print(os, "\n{}(proxy", tab);
-                ++tab;
-                std::print(os, "{}", type_val);
-                ++tab;
-                std::print(os, "\n{}{}", tab, pass_val);
-                std::print(os, "\n{}{}", tab, tag_val);
-                --tab;
-                // TODO: variadic ops as cons for slotted
-                for (auto op_val : op_vals)
-                    std::print(os, "{}", indent(tab.indent(), op_val));
-                --tab;
-                std::print(os, ")");
-                --tab;
-            });
-            std::print(os, "\n{}{}", tab, id(proxy, true));
-        }
+        std::print(os, "{}", emit_node(bb, proxy, "proxy", true, true));
     } else {
         error("Unhandled Def in SExpr backend: {} : {}", def, def->type());
         fe::unreachable();
