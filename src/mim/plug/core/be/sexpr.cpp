@@ -142,13 +142,14 @@ private:
 
     // Determines whether the symbolic expression should
     // be emitted in a style that is compatible with slotted-egraphs.
-    bool slotted() const { return slotted_ && slots_enabled_; }
+    bool slotted() const { return slotted_; }
     bool slotted_;
 
     // Temporarily disable slots while emitting.
     // While slots are disabled, no identifier is prefixed with '$'
     // and no var uses are wrapped in var nodes.
     bool toggle_slots() { return slots_enabled_ = !slots_enabled_; }
+    bool slots_enabled() const { return slotted() && slots_enabled_; }
     bool slots_enabled_;
 
     // Temporarily disable the creation/use of bindings while emitting.
@@ -157,6 +158,7 @@ private:
     // This is useful to print a term via emit_bb() with the assumption
     // that no variables have been bound. (i.e. for printing a lambda filter)
     bool toggle_bindings() { return bindings_enabled_ = !bindings_enabled_; }
+    bool bindings_enabled() const { return bindings_enabled_; }
     bool bindings_enabled_;
 
     // Ensures that we don't redeclare things, for example %axm.foo
@@ -170,13 +172,14 @@ private:
 };
 
 std::string Emitter::id(const Def* def, bool is_var_use) const {
-    std::string prefix = slotted() ? "$" : "";
+    std::string prefix = slots_enabled() ? "$" : "";
     std::string id;
 
     // In slotted-egraphs variable-uses need to be explicitly wrapped in a var node i.e. in λx.x (lam $x (var
     // $x))
-    auto var_wrap
-        = [&](std::string id) { return slotted() && is_var_use && id.starts_with(prefix) ? "(var " + id + ")" : id; };
+    auto var_wrap = [&](std::string id) {
+        return slots_enabled() && is_var_use && id.starts_with(prefix) ? "(var " + id + ")" : id;
+    };
 
     // Axioms, rules, unset lambdas(imports) and externals need to be emitted without a uid
     if (def->isa<Axm>())
@@ -748,7 +751,7 @@ std::string Emitter::emit_node(BB& bb, const Def* def, std::string node_name, bo
     for (auto op : def->ops())
         if (auto op_val = emit_bb(bb, op); !op_val.empty()) op_vals.push_back(op_val);
 
-    if (!def->sym().empty() && bindings_enabled_) {
+    if (!def->sym().empty() && bindings_enabled()) {
         // 1) Emits a let-binding to the lambda body() and then emits the name of the binding in the lambda
         // tail()
 
