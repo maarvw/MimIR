@@ -114,7 +114,7 @@ public:
     LamSet next_lams(Lam* lam);
     bool isa_nested_proj(const Extract* extract);
 
-    void emit_decl(BB& bb, const Axm* axm);
+    void emit_decl(BB& bb, const Def* def);
     void emit_lam(Lam* lam, LamSet& rec_lams);
     std::string emit_var(BB& bb, const Def* var, const Def* type, bool meta_var = false);
     std::string emit_head(BB& bb, Lam* lam, bool as_binding = false);
@@ -352,13 +352,15 @@ bool Emitter::isa_nested_proj(const Extract* extract) {
     return isa_nested_proj;
 }
 
-void Emitter::emit_decl(BB& bb, const Axm* axm) {
-    if (!world().flags2annex().contains(axm->flags()) && !is_declared(axm->sym().str())) {
-        if (typed()) std::print(decls_, "(@ {}\n", emit_type(bb, axm->type()));
-        std::print(decls_, "(axm {} {}", id(axm), emit_type(bb, axm->type()));
-        if (typed()) std::print(decls_, ")");
-        std::print(decls_, ")\n\n");
-        declared_.insert(axm->sym().str());
+void Emitter::emit_decl(BB& bb, const Def* def) {
+    if (auto axm = def->isa<Axm>()) {
+        if (!world().flags2annex().contains(axm->flags()) && !is_declared(axm->sym().str())) {
+            if (typed()) std::print(decls_, "(@ {}\n", emit_type(bb, axm->type()));
+            std::print(decls_, "(axm {} {}", id(axm), emit_type(bb, axm->type()));
+            if (typed()) std::print(decls_, ")");
+            std::print(decls_, ")\n\n");
+            declared_.insert(axm->sym().str());
+        }
     }
 }
 
