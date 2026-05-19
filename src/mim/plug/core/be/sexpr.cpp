@@ -596,24 +596,23 @@ std::string Emitter::emit_type(BB& bb, const Def* type) {
         std::string arr_val = arity_val + " " + emit_type(bb, arr->body());
 
         if (arr->isa_imm<Arr>()) {
-            auto dummy_var = slotted() ? "$dummy" : "dummy";
+            auto dummy_var = slotted() ? "$dummy" : "(var dummy nil)";
             std::print(os, "(arr {} {})", dummy_var, scope_wrap(arr_val));
-        } else if (auto mut_arr = arr->isa_mut<Arr>())
-            // TODO: To stay consistent with the rest of the non-slotted sexpr emitter,
-            // the mutables' vars should be emitted via emit_var(mut->var(), mut->var()->type())
-            // which will also emit their projections that can then be referred to later in the type.
-            // This leads to a mutual recursion between emit_var and emit_type however, so I haven't
-            // done it yet but it should be done at a later point.
-            std::print(os, "(arr {} {})", id(mut_arr->var()), scope_wrap(arr_val));
+        } else if (auto mut_arr = arr->isa_mut<Arr>()) {
+            auto var = slotted() ? id(mut_arr->var()) : "(var " + id(mut_arr->var()) + " nil)";
+            std::print(os, "(arr {} {})", var, scope_wrap(arr_val));
+        }
 
     } else if (auto pi = type->isa<Pi>()) {
         std::string doms = emit_type(bb, pi->dom()) + " " + emit_type(bb, pi->codom());
 
         if (pi->isa_imm<Pi>()) {
-            auto dummy_var = slotted() ? "$dummy" : "dummy";
+            auto dummy_var = slotted() ? "$dummy" : "(var dummy nil)";
             std::print(os, "(pi {} {})", dummy_var, scope_wrap(doms));
-        } else if (auto mut_pi = pi->isa_mut<Pi>())
-            std::print(os, "(pi {} {})", id(mut_pi->var()), scope_wrap(doms));
+        } else if (auto mut_pi = pi->isa_mut<Pi>()) {
+            auto var = slotted() ? id(mut_pi->var()) : "(var " + id(mut_pi->var()) + " nil)";
+            std::print(os, "(pi {} {})", var, scope_wrap(doms));
+        }
 
     } else if (auto sigma = type->isa<Sigma>()) {
         std::ostringstream op_vals;
@@ -622,10 +621,12 @@ std::string Emitter::emit_type(BB& bb, const Def* type) {
                         sigma->ops() | std::views::transform([&](auto op) { return emit_type(bb, op); }), " ");
 
         if (sigma->isa_imm<Sigma>()) {
-            auto dummy_var = slotted() ? "$dummy" : "dummy";
+            auto dummy_var = slotted() ? "$dummy" : "(var dummy nil)";
             std::print(os, "(sigma {} {})", dummy_var, scope_wrap(op_vals.str()));
-        } else if (auto mut_sigma = sigma->isa_mut<Sigma>())
-            std::print(os, "(sigma {} {})", id(mut_sigma->var()), scope_wrap(op_vals.str()));
+        } else if (auto mut_sigma = sigma->isa_mut<Sigma>()) {
+            auto var = slotted() ? id(mut_sigma->var()) : "(var " + id(mut_sigma->var()) + " nil)";
+            std::print(os, "(sigma {} {})", var, scope_wrap(op_vals.str()));
+        }
 
     } else if (auto tuple = type->isa<Tuple>()) {
         if (slotted())
@@ -643,10 +644,7 @@ std::string Emitter::emit_type(BB& bb, const Def* type) {
     } else if (auto hole = type->isa<Hole>()) {
         std::print(os, "(hole {})", id(hole));
     } else if (auto extract = type->isa<Extract>()) {
-        if (!slotted() && ((Lit::isa(extract->index()) && extract->tuple()->isa<Var>()) || isa_nested_proj(extract)))
-            std::print(os, "{}", id(extract));
-        else
-            std::print(os, "(extract {} {})", emit_type(bb, extract->tuple()), emit_type(bb, extract->index()));
+        std::print(os, "(extract {} {})", emit_type(bb, extract->tuple()), emit_type(bb, extract->index()));
     } else if (auto mType = type->isa<Type>()) {
         std::print(os, "(type {})", emit_type(bb, mType->level()));
     } else if (type->isa<Univ>()) {
