@@ -1,3 +1,5 @@
+#include <type_traits>
+
 #include <mim/normalize.h>
 
 #include <mim/plug/math/math.h>
@@ -9,78 +11,320 @@ namespace mim::plug::core {
 
 namespace {
 
+template<nat_t w>
+constexpr u64 mask() {
+    static_assert(w >= 1 && w <= 64);
+    if constexpr (w == 64)
+        return ~u64(0);
+    else
+        return (u64(1) << w) - 1;
+}
+
+template<nat_t w>
+constexpr u64 trunc(u64 x) {
+    return x & mask<w>();
+}
+
+template<nat_t w>
+constexpr bool sign(u64 x) {
+    static_assert(w >= 1 && w <= 64);
+    return (trunc<w>(x) >> (w - 1)) & 1;
+}
+
+template<nat_t w>
+constexpr s64 sext(u64 x) {
+    static_assert(w >= 1 && w <= 64);
+    x = trunc<w>(x);
+    if constexpr (w == 64)
+        return static_cast<s64>(x);
+    else
+        return sign<w>(x) ? static_cast<s64>(x | ~mask<w>()) : static_cast<s64>(x);
+}
+
+template<nat_t w>
+constexpr bool add_nuw(u64 u, u64 v) {
+    static_assert(w >= 1 && w <= 64);
+    u     = trunc<w>(u);
+    v     = trunc<w>(v);
+    u64 r = trunc<w>(u + v);
+    return r < u;
+}
+
+template<nat_t w>
+constexpr bool add_nsw(u64 u, u64 v) {
+    static_assert(w >= 1 && w <= 64);
+    u       = trunc<w>(u);
+    v       = trunc<w>(v);
+    u64 r   = trunc<w>(u + v);
+    bool su = sign<w>(u);
+    bool sv = sign<w>(v);
+    bool sr = sign<w>(r);
+    return (su == sv) && (sr != su);
+}
+
+template<nat_t w>
+constexpr bool sub_nuw(u64 u, u64 v) {
+    static_assert(w >= 1 && w <= 64);
+    u = trunc<w>(u);
+    v = trunc<w>(v);
+    return u < v;
+}
+
+template<nat_t w>
+constexpr bool sub_nsw(u64 u, u64 v) {
+    static_assert(w >= 1 && w <= 64);
+    u       = trunc<w>(u);
+    v       = trunc<w>(v);
+    u64 r   = trunc<w>(u - v);
+    bool su = sign<w>(u);
+    bool sv = sign<w>(v);
+    bool sr = sign<w>(r);
+    return (su != sv) && (sr != su);
+}
+
+template<nat_t w>
+constexpr bool mul_nuw(u64 u, u64 v) {
+    static_assert(w >= 1 && w <= 64);
+    u = trunc<w>(u);
+    v = trunc<w>(v);
+
+    using U128 = unsigned __int128;
+    U128 wide  = U128(u) * U128(v);
+
+    if constexpr (w == 64)
+        return (wide >> 64) != 0;
+    else
+        return (wide >> w) != 0;
+}
+
+template<nat_t w>
+constexpr bool mul_nsw(u64 u, u64 v) {
+    static_assert(w >= 1 && w <= 64);
+    u = trunc<w>(u);
+    v = trunc<w>(v);
+
+    using S128 = __int128_t;
+    S128 a     = static_cast<S128>(sext<w>(u));
+    S128 b     = static_cast<S128>(sext<w>(v));
+    S128 wide  = a * b;
+
+    S128 smin, smax;
+    if constexpr (w == 64) {
+        smin = static_cast<S128>(std::numeric_limits<s64>::min());
+        smax = static_cast<S128>(std::numeric_limits<s64>::max());
+    } else {
+        smin = -(S128(1) << (w - 1));
+        smax = (S128(1) << (w - 1)) - 1;
+    }
+
+    return wide < smin || wide > smax;
+}
+
+template<nat_t w>
+constexpr bool shl_nuw(u64 u, unsigned k) {
+    static_assert(w >= 1 && w <= 64);
+    u = trunc<w>(u);
+    if (k == 0) return false;
+    return (u >> (w - k)) != 0;
+}
+
+template<nat_t w>
+constexpr bool shl_nsw(u64 u, unsigned k) {
+    static_assert(w >= 1 && w <= 64);
+    u = trunc<w>(u);
+    if (k == 0) return false;
+
+    using S128 = __int128_t;
+    S128 a     = static_cast<S128>(sext<w>(u));
+    S128 wide  = a << k;
+
+    S128 smin, smax;
+    if constexpr (w == 64) {
+        smin = static_cast<S128>(std::numeric_limits<s64>::min());
+        smax = static_cast<S128>(std::numeric_limits<s64>::max());
+    } else {
+        smin = -(S128(1) << (w - 1));
+        smax = (S128(1) << (w - 1)) - 1;
+    }
+
+    return wide < smin || wide > smax;
+}
+
+template<nat_t w>
+constexpr bool sdivrem(u64 u, u64 v) {
+    static_assert(w >= 1 && w <= 64);
+    s64 a = sext<w>(u);
+    s64 b = sext<w>(v);
+    if (b == 0) return true;
+
+    if constexpr (w == 64) {
+        return a == std::numeric_limits<s64>::min() && b == -1;
+    } else {
+        s64 smin = -(s64(1) << (w - 1));
+        return a == smin && b == -1;
+    }
+}
+
+// ---------- icmp helpers ----------
+
+template<nat_t w, icmp id>
+constexpr bool fold_icmp(u64 a, u64 b) {
+    static_assert(w >= 1 && w <= 64);
+
+    const u64 u   = trunc<w>(a);
+    const u64 v   = trunc<w>(b);
+    const bool su = sign<w>(u);
+    const bool sv = sign<w>(v);
+
+    flags_t rel = 0;
+    // clang-format off
+    if (false) {}
+    else if (u == v)     rel = icmp_mask & flags_t(icmp::xyglE); // equal
+    else if (!su &&  sv) rel = icmp_mask & flags_t(icmp::Xygle); // plus, minus
+    else if ( su && !sv) rel = icmp_mask & flags_t(icmp::xYgle); // minus, plus
+    else if (u > v)      rel = icmp_mask & flags_t(icmp::xyGle); // same-sign greater
+    else                 rel = icmp_mask & flags_t(icmp::xygLe); // same-sign less
+    // clang-format on
+
+    return (flags_t(id) & rel) != 0;
+}
+
 // clang-format off
-// See https://stackoverflow.com/a/64354296 for static_assert trick below.
+static_assert(trunc<8>(0x123) == 0x23);
+static_assert( sign<8>(0x80));
+static_assert(!sign<8>(0x7f));
+static_assert(sext<8>(0x80) == -128);
+static_assert(sext<8>(0xff) == -1);
+static_assert(sext<8>(0x7f) == 127);
+
+static_assert (add_nuw<8>(255, 1));
+static_assert (add_nsw<8>(127, 1));
+static_assert(!add_nsw<8>(  1, 2));
+
+static_assert(sub_nuw<8>(0, 1));
+static_assert(sub_nsw<8>(0x80, 1)); // -128 - 1
+
+static_assert(mul_nuw<8>(16, 16));
+static_assert(mul_nsw<8>(20, 20));
+
+static_assert(!shl_nuw<8>(1, 7));
+static_assert( shl_nuw<8>(0x80, 1));
+static_assert( shl_nsw<8>(0x40, 1));
+
+static_assert( fold_icmp<3, icmp::e >(0b010, 0b010));
+static_assert( fold_icmp<3, icmp::ne>(0b010, 0b011));
+static_assert( fold_icmp<3, icmp::sg>(0b011, 0b100)); // 3 > -4
+static_assert( fold_icmp<3, icmp::ul>(0b011, 0b100)); // 3 < 4
+static_assert( fold_icmp<3, icmp::sl>(0b100, 0b011)); // -4 < 3
+static_assert( fold_icmp<3, icmp::t >(0b001, 0b111));
+static_assert(!fold_icmp<3, icmp::f >(0b001, 0b111));
+// clang-format on
+
 template<class Id, Id id, nat_t w>
 Res fold(u64 a, u64 b, [[maybe_unused]] bool nsw, [[maybe_unused]] bool nuw) {
+    static_assert(w >= 1 && w <= 64);
+
     using ST = w2s<w>;
     using UT = w2u<w>;
-    auto s = mim::bitcast_resize<ST>(a), t = mim::bitcast_resize<ST>(b);
-    auto u = mim::bitcast_resize<UT>(a), v = mim::bitcast_resize<UT>(b);
+
+    const u64 u = trunc<w>(a);
+    const u64 v = trunc<w>(b);
 
     if constexpr (std::is_same_v<Id, wrap>) {
         if constexpr (id == wrap::add) {
-            auto res = u + v;
-            if (nuw && res < u) return {};
-            // TODO nsw
-            return res;
+            if constexpr (w == 1) {
+                return bool(u ^ v);
+            } else {
+                if (nuw && add_nuw<w>(u, v)) return {};
+                if (nsw && add_nsw<w>(u, v)) return {};
+                return UT(trunc<w>(u + v));
+            }
         } else if constexpr (id == wrap::sub) {
-            auto res = u - v;
-            //  TODO nsw
-            return res;
+            if constexpr (w == 1) {
+                return bool(u ^ v);
+            } else {
+                if (nuw && sub_nuw<w>(u, v)) return {};
+                if (nsw && sub_nsw<w>(u, v)) return {};
+                return UT(trunc<w>(u - v));
+            }
         } else if constexpr (id == wrap::mul) {
-            if constexpr (std::is_same_v<UT, bool>)
-                return UT(u & v);
-            else
-                return UT(u * v);
+            if constexpr (w == 1) {
+                return bool(u & v);
+            } else {
+                if (nuw && mul_nuw<w>(u, v)) return {};
+                if (nsw && mul_nsw<w>(u, v)) return {};
+                return UT(trunc<w>(u * v));
+            }
         } else if constexpr (id == wrap::shl) {
             if (b >= w) return {};
-            decltype(u) res;
-            if constexpr (std::is_same_v<UT, bool>)
-                res = bool(u64(u) << u64(v));
-            else
-                res = u << v;
-            if (nuw && res < u) return {};
-            if (nsw && get_sign(u) != get_sign(res)) return {};
-            return res;
+            const unsigned k = static_cast<unsigned>(b);
+
+            if constexpr (w == 1) {
+                if (k != 0) return {};
+                return bool(u);
+            } else {
+                if (nuw && shl_nuw<w>(u, k)) return {};
+                if (nsw && shl_nsw<w>(u, k)) return {};
+                return UT(trunc<w>(u << k));
+            }
         } else {
-             static_assert(false, "missing sub tag");
+            static_assert(false, "missing wrap subtag");
         }
     } else if constexpr (std::is_same_v<Id, shr>) {
         if (b >= w) return {};
-        if constexpr (false) {}
-        else if constexpr (id == shr::a) return s >> t;
-        else if constexpr (id == shr::l) return u >> v;
-        else static_assert(false, "missing sub tag");
+        const unsigned k = static_cast<unsigned>(b);
+
+        if constexpr (id == shr::a)
+            if constexpr (w == 1)
+                return bool(u);
+            else
+                return ST(static_cast<ST>(sext<w>(u) >> k));
+        else if constexpr (id == shr::l)
+            return UT(trunc<w>(u >> k));
+        else
+            static_assert(false, "missing shr subtag");
     } else if constexpr (std::is_same_v<Id, div>) {
-        if (b == 0) return {};
-        if constexpr (false) {}
-        else if constexpr (id == div::sdiv) return s / t;
-        else if constexpr (id == div::udiv) return u / v;
-        else if constexpr (id == div::srem) return s % t;
-        else if constexpr (id == div::urem) return u % v;
-        else static_assert(false, "missing sub tag");
+        if (v == 0) return {};
+
+        if constexpr (id == div::udiv)
+            return UT(trunc<w>(u / v));
+        else if constexpr (id == div::urem)
+            return UT(trunc<w>(u % v));
+        else if constexpr (id == div::sdiv) {
+            if (sdivrem<w>(u, v)) return {};
+            return ST(static_cast<ST>(sext<w>(u) / sext<w>(v)));
+        } else if constexpr (id == div::srem) {
+            if (sdivrem<w>(u, v)) return {};
+            return ST(static_cast<ST>(sext<w>(u) % sext<w>(v)));
+        } else {
+            static_assert(false, "missing div subtag");
+        }
     } else if constexpr (std::is_same_v<Id, icmp>) {
-        bool res = false;
-        auto pm  = !(u >> UT(w - 1)) &&  (v >> UT(w - 1));
-        auto mp  =  (u >> UT(w - 1)) && !(v >> UT(w - 1));
-        res |= ((id & icmp::Xygle) != icmp::f) && pm;
-        res |= ((id & icmp::xYgle) != icmp::f) && mp;
-        res |= ((id & icmp::xyGle) != icmp::f) && u > v && !mp;
-        res |= ((id & icmp::xygLe) != icmp::f) && u < v && !pm;
-        res |= ((id & icmp::xyglE) != icmp::f) && u == v;
-        return res;
+        return fold_icmp<w, id>(u, v);
     } else if constexpr (std::is_same_v<Id, extrema>) {
-        if constexpr (false) {}
-        else if(id == extrema::sm) return std::min(u, v);
-        else if(id == extrema::Sm) return std::min(s, t);
-        else if(id == extrema::sM) return std::max(u, v);
-        else if(id == extrema::SM) return std::max(s, t);
+        if constexpr (id == extrema::sm) {
+            UT uu = static_cast<UT>(u);
+            UT vv = static_cast<UT>(v);
+            return std::min(uu, vv);
+        } else if constexpr (id == extrema::sM) {
+            UT uu = static_cast<UT>(u);
+            UT vv = static_cast<UT>(v);
+            return std::max(uu, vv);
+        } else if constexpr (id == extrema::Sm) {
+            ST ss = static_cast<ST>(sext<w>(u));
+            ST tt = static_cast<ST>(sext<w>(v));
+            return std::min(ss, tt);
+        } else if constexpr (id == extrema::SM) {
+            ST ss = static_cast<ST>(sext<w>(u));
+            ST tt = static_cast<ST>(sext<w>(v));
+            return std::max(ss, tt);
+        } else {
+            static_assert(false, "missing extrema subtag");
+        }
     } else {
         static_assert(false, "missing tag");
     }
 }
-// clang-format on
 
 // Note that @p a and @p b are passed by reference as fold also commutes if possible.
 template<class Id, Id id>
@@ -120,13 +364,36 @@ const Def* fold(World& world, const Def* type, const Def*& a, const Def*& b, con
 
 template<class Id, nat_t w>
 Res fold(u64 a, [[maybe_unused]] bool nsw, [[maybe_unused]] bool nuw) {
-    using ST = w2s<w>;
-    auto s   = mim::bitcast_resize<ST>(a);
+    static_assert(w >= 1 && w <= 64);
 
-    if constexpr (std::is_same_v<Id, abs>)
-        return std::abs(s);
-    else
+    using ST = w2s<w>;
+    using UT = w2u<w>;
+
+    const u64 u = trunc<w>(a);
+
+    if constexpr (std::is_same_v<Id, abs>) {
+        const s64 s = sext<w>(u);
+
+        if (s >= 0) return ST(static_cast<ST>(s));
+
+        // negative case
+        if constexpr (w == 64) {
+            if (s == std::numeric_limits<s64>::min()) {
+                if (nsw) return {};
+                return UT(u); // wrapping two's-complement abs leaves INT_MIN unchanged
+            }
+        } else {
+            const s64 smin = -(s64(1) << (w - 1));
+            if (s == smin) {
+                if (nsw) return {};
+                return UT(u); // same bitpattern
+            }
+        }
+
+        return ST(static_cast<ST>(-s));
+    } else {
         static_assert(false, "missing tag");
+    }
 }
 
 template<class Id>

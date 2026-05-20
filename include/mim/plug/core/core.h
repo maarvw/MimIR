@@ -7,6 +7,8 @@
 
 namespace mim::plug::core {
 
+constexpr flags_t icmp_mask = 0b00011111; // low 5 bits encode X Y G L E as bits 4..0
+
 /// @name Mode
 ///@{
 /// What should happen if Idx arithmetic overflows?
