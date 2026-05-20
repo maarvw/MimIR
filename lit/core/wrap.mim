@@ -1,3 +1,4 @@
+// RUN: %mim %s
 plugin core;
 plugin refly;
 

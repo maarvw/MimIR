@@ -86,36 +86,35 @@ constexpr bool mul_nuw(u64 u, u64 v) {
     u = trunc<w>(u);
     v = trunc<w>(v);
 
-    using U128 = unsigned __int128;
-    U128 wide  = U128(u) * U128(v);
+    if (u == 0 || v == 0) return false;
 
-    if constexpr (w == 64)
-        return (wide >> 64) != 0;
-    else
-        return (wide >> w) != 0;
+    if constexpr (w == 64) {
+        return v > std::numeric_limits<u64>::max() / u; // Check whether u * v would exceed 2^64 - 1.
+    } else {
+        constexpr u64 max_val = (w == 64) ? ~u64(0) : (u64(1) << w) - 1;
+        return v > max_val / u; // Check if u * v > max_val. To avoid overflow, compare v > max_val / u.
+    }
 }
 
 template<nat_t w>
 constexpr bool mul_nsw(u64 u, u64 v) {
     static_assert(w >= 1 && w <= 64);
-    u = trunc<w>(u);
-    v = trunc<w>(v);
+    u     = trunc<w>(u);
+    v     = trunc<w>(v);
+    s64 a = sext<w>(u);
+    s64 b = sext<w>(v);
 
-    using S128 = __int128_t;
-    S128 a     = static_cast<S128>(sext<w>(u));
-    S128 b     = static_cast<S128>(sext<w>(v));
-    S128 wide  = a * b;
+    if (a == 0 || b == 0) return false;
 
-    S128 smin, smax;
-    if constexpr (w == 64) {
-        smin = static_cast<S128>(std::numeric_limits<s64>::min());
-        smax = static_cast<S128>(std::numeric_limits<s64>::max());
-    } else {
-        smin = -(S128(1) << (w - 1));
-        smax = (S128(1) << (w - 1)) - 1;
-    }
+    // Check overflow using the known limits.
+    s64 min_val = (w == 64) ? std::numeric_limits<s64>::min() : -(s64(1) << (w - 1));
+    s64 max_val = (w == 64) ? std::numeric_limits<s64>::max() : (s64(1) << (w - 1)) - 1;
 
-    return wide < smin || wide > smax;
+    if (a > 0 && b > 0) return a > max_val / b;
+    if (a < 0 && b < 0) return a < max_val / b; // because b negative flips inequality
+    if (a > 0 && b < 0) return b < min_val / a;
+    if (a < 0 && b > 0) return a < min_val / b;
+    return false;
 }
 
 template<nat_t w>
@@ -131,21 +130,11 @@ constexpr bool shl_nsw(u64 u, unsigned k) {
     static_assert(w >= 1 && w <= 64);
     u = trunc<w>(u);
     if (k == 0) return false;
-
-    using S128 = __int128_t;
-    S128 a     = static_cast<S128>(sext<w>(u));
-    S128 wide  = a << k;
-
-    S128 smin, smax;
-    if constexpr (w == 64) {
-        smin = static_cast<S128>(std::numeric_limits<s64>::min());
-        smax = static_cast<S128>(std::numeric_limits<s64>::max());
-    } else {
-        smin = -(S128(1) << (w - 1));
-        smax = (S128(1) << (w - 1)) - 1;
-    }
-
-    return wide < smin || wide > smax;
+    if (k >= w) return sext<w>(u) != 0;
+    s64 a     = sext<w>(u);
+    u64 shift = w - 1 - k;        // bits above the kept region
+    s64 top   = a >> shift;       // top (k+1) bits, sign extended into full s64
+    return top != 0 && top != -1; // overflow iff not all same: not (all 0 or all 1)
 }
 
 template<nat_t w>
