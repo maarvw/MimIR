@@ -1,5 +1,3 @@
-#include <mim/normalize.h>
-
 #include "mim/plug/math/math.h"
 
 namespace mim::plug::math {
@@ -8,7 +6,7 @@ namespace {
 
 // clang-format off
 template<class Id, Id id, nat_t w>
-Res fold(u64 a) {
+std::optional<u64> fold(u64 a) {
     using T = w2f<w>;
     auto x = bitcast_resize<T>(a);
     if constexpr (std::is_same_v<Id, tri>) {
@@ -63,7 +61,7 @@ Res fold(u64 a) {
 }
 
 template<class Id, nat_t w>
-Res fold(u64 a) {
+std::optional<u64> fold(u64 a) {
     using T = w2f<w>;
     auto x = bitcast_resize<T>(a);
     if constexpr (std::is_same_v<Id, abs>)
@@ -79,7 +77,7 @@ const Def* fold(World& world, const Def* type, const Def* a) {
 
     if (la) {
         nat_t width = *isa_f(a->type());
-        Res res;
+        std::optional<u64> res;
         switch (width) {
 #define CODE(i) \
     case i: res = fold<Id, i>(la->get()); break;
@@ -95,7 +93,7 @@ const Def* fold(World& world, const Def* type, const Def* a) {
 }
 
 template<class Id, Id id, nat_t w>
-Res fold(u64 a, u64 b) {
+std::optional<u64> fold(u64 a, u64 b) {
     using T = w2f<w>;
     auto x = bitcast_resize<T>(a), y = bitcast_resize<T>(b);
     if constexpr (std::is_same_v<Id, arith>) {
@@ -141,7 +139,7 @@ const Def* fold(World& world, const Def* type, const Def* a) {
 
     if (auto la = Lit::isa(a)) {
         nat_t width = *isa_f(a->type());
-        Res res;
+        std::optional<u64> res;
         switch (width) {
 #define CODE(i) \
     case i: res = fold<Id, id, i>(*la); break;
@@ -164,7 +162,7 @@ const Def* fold(World& world, const Def* type, const Def*& a, const Def*& b) {
     if (auto la = Lit::isa(a)) {
         if (auto lb = Lit::isa(b)) {
             nat_t width = *isa_f(a->type());
-            Res res;
+            std::optional<u64> res;
             switch (width) {
 #define CODE(i) \
     case i: res = fold<Id, id, i>(*la, *lb); break;
@@ -227,7 +225,7 @@ const Def* reassociate(Id id, World& world, [[maybe_unused]] const App* ab, cons
 }
 
 template<class Id, Id id, nat_t sw, nat_t dw>
-Res fold(u64 a) {
+std::optional<u64> fold(u64 a) {
     using S = std::conditional_t<id == conv::s2f, w2s<sw>, std::conditional_t<id == conv::u2f, w2u<sw>, w2f<sw>>>;
     using D = std::conditional_t<id == conv::f2s, w2s<dw>, std::conditional_t<id == conv::f2u, w2u<dw>, w2f<dw>>>;
     if constexpr (std::is_void_v<S> || std::is_void_v<D>)
@@ -406,7 +404,7 @@ const Def* normalize_conv(const Def* dst_t, const Def*, const Def* x) {
         auto dw               = df ? isa_f(d_t) : Idx::size2bitwidth(*ld);
 
         if (sw && dw) {
-            Res res;
+            std::optional<u64> res;
             // clang-format off
             if (false) {}
 #define M(S, D)                                         \

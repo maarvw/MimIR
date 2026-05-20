@@ -200,9 +200,9 @@ static_assert( shl_nsw<8>(0x40, 1));
 
 static_assert( fold_icmp<3, icmp::e >(0b010, 0b010));
 static_assert( fold_icmp<3, icmp::ne>(0b010, 0b011));
-static_assert( fold_icmp<3, icmp::sg>(0b011, 0b100)); // 3 > -4
-static_assert( fold_icmp<3, icmp::ul>(0b011, 0b100)); // 3 < 4
-static_assert( fold_icmp<3, icmp::sl>(0b100, 0b011)); // -4 < 3
+static_assert( fold_icmp<3, icmp::sg>(0b011, 0b100)); //  3 > -4
+static_assert( fold_icmp<3, icmp::ul>(0b011, 0b100)); //  3 <  4
+static_assert( fold_icmp<3, icmp::sl>(0b100, 0b011)); // -4 <  3
 static_assert( fold_icmp<3, icmp::t >(0b001, 0b111));
 static_assert(!fold_icmp<3, icmp::f >(0b001, 0b111));
 // clang-format on
