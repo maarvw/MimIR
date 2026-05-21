@@ -9,7 +9,6 @@
 /// ## Dependencies
 ///
 plugin core;
-plugin refly;
 ///
 /// ## Operations
 ///
