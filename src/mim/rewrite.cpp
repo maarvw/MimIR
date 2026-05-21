@@ -259,7 +259,7 @@ const Def* Zonker::map(const Def* old_def, const Def* new_def) {
 }
 
 const Def* Zonker::lookup(const Def* old_def) {
-    save_dot(&old2new_);
+    //save_dot(&old2new_);
     //for (auto& old2new : old2news_ | std::views::reverse) {
         const Def* repr;
         auto path = DefVec();
@@ -277,10 +277,14 @@ const Def* Zonker::lookup(const Def* old_def) {
         //if (path.empty()) continue;
 
         // path compression: flatten all visited nodes
-        for (auto def : path)
+        //for (auto def : path)
             //old2new[def] = repr;
-            old2new_ = old2new_.insert(def,repr);//old2new = old2new.insert(def, repr);
-
+            //old2new_ = old2new_.insert(def,repr);//old2new = old2new.insert(def, repr);
+            
+        std::vector<std::pair<const Def*, const Def*>> pairs;
+        for (auto def : path)
+            pairs.emplace_back(def, repr);
+        old2new_ = old2new_.mutate_keys(pairs.begin(), pairs.end());
         
 
         return repr;

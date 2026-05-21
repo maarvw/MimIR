@@ -599,7 +599,9 @@ TEST(Rewrite, Hole) {
 TEST(Setmaps,IntString) {
     auto m1=setmap<int,std::string>({0,"null"});
     auto m2=m1.insert(6,"sechs");
-    auto m3=m2.insert({{1,"eins"},{2,"zwei"}});
+    //auto m3=m2.insert({{1,"eins"},{2,"zwei"}});
+    auto m3=m2.insert(1,"eins");
+    m3=m3.insert(2,"zwei");
     auto m4=m3.insert(3,"dreidreidreidreidrei");
     ASSERT_TRUE(m4[0]=="null");
     ASSERT_TRUE(m4[1]=="eins");
@@ -611,7 +613,9 @@ TEST(Setmaps,IntString) {
 TEST(Setmaps, StringInt) {
     auto m1=setmap<std::string,int>({"null",0});
     auto m2=m1.insert("sechs",6);
-    auto m3=m2.insert({{"eins",1},{"zwei",2}});
+    //auto m3=m2.insert({{"eins",1},{"zwei",2}});
+    auto m3=m2.insert("eins",1);
+    m3=m3.insert("zwei",2);
     auto m4=m3.insert("dreidreidreidreidrei",3);
     auto m5 = m4.insert("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 42);
     ASSERT_TRUE(m4["null"]==0);
@@ -632,7 +636,7 @@ TEST(Setmaps, OperatorEq) {
     ASSERT_EQ(m4[3],2);
     ASSERT_EQ(m4.size(),3);
     int i=0;
-    for (auto _ : m4) i++;
+    for (auto mi = m4.begin(); mi!=m4.end();++mi) i++;
     ASSERT_EQ(i, 3);
 }
 

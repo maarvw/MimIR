@@ -8,6 +8,7 @@
 .DS_Store
 .cache
 build*/
+release/*
 compile_commands.json
 vgcore.*
 assets/*.aux
