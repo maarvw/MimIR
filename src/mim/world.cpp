@@ -4,7 +4,6 @@
 #include "mim/def.h"
 #include "mim/driver.h"
 #include "mim/rewrite.h"
-#include "mim/rule.h"
 #include "mim/tuple.h"
 
 #include "mim/util/util.h"
@@ -91,7 +90,7 @@ Sym World::sym(std::string_view s) { return driver().sym(s); }
 Sym World::sym(const std::string& s) { return driver().sym(s); }
 
 const Def* World::register_annex(flags_t f, const Def* def) {
-    TLOG("register: 0x{:x} -> {}", f, def);
+    TLOG("register: 0x{:x} -> {} ({})", f, def, def->sym());
     auto plugin = Annex::demangle(driver(), f);
     if (driver().is_loaded(plugin)) {
         assert_emplace(move_.flags2annex, f, def);
@@ -391,11 +390,16 @@ const Def* World::extract(const Def* d, const Def* index) {
         }
     }
 
-    if (auto pack = d->isa_imm<Pack>()) return pack->body();
-
     if (size && !Checker::alpha<Checker::Check>(type->arity(), size))
         error(index->loc(), "index '{}' does not fit within arity '{}'", index, type->arity());
     // TODO if we have indices we need to check as well that this is compatible with `d`
+
+    if (auto pack = d->isa<Pack>()) {
+        if (pack->has_var())
+            return pack->reduce(index);
+        else
+            return pack->body();
+    }
 
     // extract(insert(x, index, val), index) -> val
     if (auto insert = d->isa<Insert>()) {

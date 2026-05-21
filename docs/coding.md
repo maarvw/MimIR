@@ -25,6 +25,7 @@ cmake --build build -j$(nproc)
 Useful follow-up commands are:
 
 ```sh
+cmake --build build --target test-all
 cmake --build build --target lit
 ctest --test-dir build --output-on-failure
 pre-commit run --all-files
@@ -38,6 +39,7 @@ The following CMake switches are available:
 | `CMAKE_INSTALL_PREFIX`  |                                          | `/usr/local` | Install prefix.                                                                                 |
 | `MIM_BUILD_DOCS`        | `ON` \| `OFF`                            | `OFF`        | If `ON`, build the documentation <br> (requires Doxygen).                                       |
 | `MIM_BUILD_EXAMPLES`    | `ON` \| `OFF`                            | `OFF`        | If `ON`, build the examples.                                                                    |
+| `MIM_BUILD_PYTHON`      | `ON` \| `OFF`                            | `ON`         | If `ON`, build Python bindings.                                                                 |
 | `MIM_ENABLE_CHECKS`     | `ON` \| `OFF`                            | `ON`         | If `ON`, enable expensive runtime checks <br> (requires `CMAKE_BUILD_TYPE=Debug`).              |
 | `BUILD_TESTING`         | `ON` \| `OFF`                            | `OFF`        | If `ON`, build all unit tests and `lit` tests.                                                  |
 | `MIM_LIT_TIMEOUT`       | `<timeout_in_sec>`                       | `20`         | Timeout for `lit` tests. <br> (requires `BUILD_TESTING=ON`).                                    |
@@ -56,6 +58,12 @@ So you can simply hand the emitted `*.ll` file to your system's LLVM toolchain.
 Strictly speaking, LLVM is not required unless you want to continue from emitted LLVM IR.
 
 ## Testing {#testing}
+
+Run every in-tree test suite with:
+
+```sh
+cmake --build build --target test-all
+```
 
 ### lit Tests
 
@@ -80,6 +88,7 @@ cd lit
 ```
 
 @note To generate a one-line reproducer for the current checkout and a specific `lit` failure, use:
+
 ```sh
 ./scripts/make_lit_error.sh foo.mim
 ```
@@ -118,6 +127,7 @@ build/bin/mim-gtest --gtest_break_on_failure
 ```
 
 @note To generate a one-line reproducer for the current checkout and a specific GoogleTest failure, use:
+
 ```sh
 ./scripts/make_gtest_error.sh "mim.World.dependent_extract"
 ```
@@ -206,6 +216,7 @@ private:
 - Do not hard-wrap Markdown text to 80 columns.
 
 <!-- Keep the invisible separator in `M⁠im` so Doxygen does not link this heading to the `mim` namespace in the TOC. -->
+
 ### M⁠im Coding Style
 
 - Prefer the primary UTF-8 surface syntax over ASCII-only spellings when writing Mim code and tests.
