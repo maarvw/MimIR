@@ -287,8 +287,10 @@ void Emitter::emit_imported(Lam* lam) {
 
     } else {
         if (typed()) std::print(func_decls_, "\n{}(@ {}", tab, emit_type(bb, lam->type()));
-        std::print(func_decls_, "(con {} {}", ext, id(lam));
+        std::print(func_decls_, "({} {} {}", lam_kind, ext, id(lam));
         std::print(func_decls_, "{}", emit_var(bb, lam->var(), lam->type()->dom()));
+        std::print(func_decls_, "\n{}{}", tab, emit_type(bb, lam->dom()));
+        std::print(func_decls_, "\n{}{}", tab, emit_type(bb, lam->codom()));
         if (typed()) std::print(func_decls_, ")");
         std::print(func_decls_, ")\n\n");
     }
@@ -308,7 +310,7 @@ void Emitter::finalize() {
     // via emit_bb() but we don't want to emit the lambda itself.
     // We can't do this with Axm::isa because 'eqsat' is an out-of-tree plugin
     // that isn't guaranteed to have been cloned so we can't include its header file.
-    else if (root()->ret_var() && root()->ret_dom()->sym().str() == "%eqsat.Rules")
+    else if (root()->codom()->sym().str() == "%eqsat.Rules")
         return;
 
     LamSet rec_lams;
@@ -460,15 +462,13 @@ std::string Emitter::emit_var(BB& bb, const Def* var, const Def* type, bool meta
     else {
         auto projs = var->projs();
         if (projs.size() == 1 || std::ranges::all_of(projs, [](auto proj) { return proj->sym().empty(); }))
-            std::print(os, "\n{}(var {} {})", tab, id(var), emit_type(bb, type));
+            std::print(os, "\n{}(var {})", tab, id(var));
         else {
             std::print(os, "\n{}(var {}", tab, id(var));
             size_t i = 0;
             for (auto proj : projs)
                 std::print(os, "{}", emit_var(bb, proj, type->proj(i++)));
-            ++tab;
-            std::print(os, "\n{}{})", tab, emit_type(bb, type));
-            --tab;
+            std::print(os, ")");
         }
     }
     --tab;
@@ -506,13 +506,18 @@ std::string Emitter::emit_head(BB& bb, Lam* lam, bool as_binding) {
         ++tab;
         std::print(os, "\n{}{}", tab, id(lam));
         if (typed()) std::print(os, "\n{}(@ {}", tab, emit_type(bb, lam->type()));
-        std::print(os, "\n{}(con {} {}", tab, ext, id(lam));
+        std::print(os, "\n{}({} {} {}", tab, lam_kind, ext, id(lam));
     } else {
         if (typed()) std::print(os, "\n{}(@ {}\n", tab, emit_type(bb, lam->type()));
-        std::print(os, "(con {} {}", ext, id(lam));
+        std::print(os, "({} {} {}", lam_kind, ext, id(lam));
     }
 
     std::print(os, "{}", emit_var(bb, lam->var(), lam->type()->dom()));
+
+    if (!slotted()) {
+        std::print(os, "\n{}{}", tab, emit_type(bb, lam->dom()));
+        std::print(os, "\n{}{}", tab, emit_type(bb, lam->codom()));
+    }
 
     if (slotted()) {
         ++tab;
