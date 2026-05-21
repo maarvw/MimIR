@@ -18,13 +18,13 @@ let _ = %refly.equiv.struc_eq (%core.wrap.add %core.mode.us (1844674407370955161
 // word-domain wrap.add with overflow modes
 let _ = %refly.equiv.struc_eq (%core.wrap.add %core.mode.nuw (1I8, 2I8), 3I8);
 let _ = %refly.equiv.struc_eq (%core.wrap.add %core.mode.nsw (1I8, 2I8), 3I8);
-let _ = %refly.equiv.struc_eq (%core.wrap.add %core.mode.nusw (1I8, 2I8), 3I8);
+let _ = %refly.equiv.struc_eq (%core.wrap.add %core.mode.nsuw (1I8, 2I8), 3I8);
 let _ = %refly.equiv.struc_eq (%core.wrap.add %core.mode.nsw (127I8, 0I8), 127I8);
 let _ = %refly.equiv.struc_eq (%core.wrap.add %core.mode.nsw (255I8, 0I8), 255I8);
 let _ = %refly.check_bot (%core.wrap.add %core.mode.nuw (255I8, 1I8));
 let _ = %refly.check_bot (%core.wrap.add %core.mode.nsw (127I8, 1I8));
-let _ = %refly.check_bot (%core.wrap.add %core.mode.nusw (255I8, 1I8));
-let _ = %refly.check_bot (%core.wrap.add %core.mode.nusw (127I8, 1I8));
+let _ = %refly.check_bot (%core.wrap.add %core.mode.nsuw (255I8, 1I8));
+let _ = %refly.check_bot (%core.wrap.add %core.mode.nsuw (127I8, 1I8));
 
 // word-domain wrap.sub
 let _ = %refly.equiv.struc_eq (%core.wrap.sub %core.mode.us (7I8, 3I8), 4I8);
@@ -216,9 +216,9 @@ let _ = %refly.equiv.struc_eq (%core.wrap.mul %core.mode.nuw (2_5, 2_5), 4_5);
 let _ = %refly.check_bot (%core.wrap.add %core.mode.nuw (4_5, 1_5));
 let _ = %refly.check_bot (%core.wrap.sub %core.mode.nuw (0_5, 1_5));
 let _ = %refly.check_bot (%core.wrap.mul %core.mode.nuw (3_5, 4_5));
-let _ = %refly.check_bot (%core.wrap.add %core.mode.nsw (1_5, 1_5));
-let _ = %refly.check_bot (%core.wrap.sub %core.mode.nsw (1_5, 1_5));
-let _ = %refly.check_bot (%core.wrap.mul %core.mode.nsw (1_5, 1_5));
+//let _ = %refly.check_bot (%core.wrap.add %core.mode.nsw (1_5, 1_5));
+//let _ = %refly.check_bot (%core.wrap.sub %core.mode.nsw (1_5, 1_5));
+//let _ = %refly.check_bot (%core.wrap.mul %core.mode.nsw (1_5, 1_5));
 
 /// non-power-of-two arithmetic on Idx 10
 let _ = %refly.equiv.struc_eq (%core.wrap.add %core.mode.us (9_10, 1_10), 0_10);

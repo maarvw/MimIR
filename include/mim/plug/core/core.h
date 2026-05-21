@@ -16,7 +16,7 @@ enum class Mode : nat_t {
     none = 0,      ///< Wrap around.
     nsw  = 1 << 0, ///< No Signed Wrap around.
     nuw  = 1 << 1, ///< No Unsigned Wrap around.
-    nusw = nuw | nsw,
+    nsuw = nsw | nuw,
 };
 
 /// Give Mode as mim::plug::math::Mode, mim::nat_t or const Def*.
