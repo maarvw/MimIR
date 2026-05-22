@@ -300,7 +300,7 @@ std::string Emitter::prepare() { return root()->unique_name(); }
 
 void Emitter::emit_epilogue(Lam* lam) {
     auto& bb = lam2bb_[lam];
-    bb.tail("{}", emit(lam->body()));
+    if (!lam->sym().empty()) bb.tail("{}", emit(lam->body()));
 }
 
 void Emitter::finalize() {
@@ -315,7 +315,7 @@ void Emitter::finalize() {
 
     LamSet rec_lams;
     auto root_lam = nest().root()->mut()->as_mut<Lam>();
-    emit_lam(root_lam, rec_lams);
+    if (!root_lam->sym().empty()) emit_lam(root_lam, rec_lams);
 }
 
 std::set<Lam*> Emitter::next_lams(Lam* lam) {
@@ -323,7 +323,8 @@ std::set<Lam*> Emitter::next_lams(Lam* lam) {
     for (auto op : lam->deps()) {
         for (auto mut : op->local_muts())
             if (auto next = nest()[mut]) {
-                if (auto next_lam = next->mut()->isa<Lam>()) next_lams.insert(next_lam);
+                // Unnamed lams will be printed inline
+                if (auto next_lam = next->mut()->isa<Lam>(); !next_lam->sym().empty()) next_lams.insert(next_lam);
             }
     }
     return next_lams;
@@ -809,7 +810,24 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
     if (typed()) std::print(os, "\n{}(@ {}", tab, emit_type(bb, def->type()));
 
     if (auto lam = def->isa<Lam>()) {
-        std::print(os, "\n{}{}", tab, id(lam, true));
+        if (!lam->sym().empty())
+            std::print(os, "\n{}{}", tab, id(lam, true));
+        else {
+            auto lam_kind = Lam::isa_returning(lam) ? "fun" : Lam::isa_cn(lam) ? "con" : "lam";
+            std::string var_val;
+            if (auto var = lam->has_var())
+                var_val = emit_var(bb, var, var->type());
+            else
+                var_val = slotted() ? "$dummy" : "(var dummy)";
+            std::print(os, "\n{}({} {}", tab, lam_kind, var_val);
+            ++tab;
+            if (slotted()) std::print(os, "\n{}(scope", tab);
+            std::print(os, "{}", emit_bb(bb, lam->filter()));
+            std::print(os, "{}", emit_bb(bb, lam->body()));
+            --tab;
+            if (slotted()) std::print(os, ")");
+            std::print(os, ")");
+        }
 
     } else if (auto lit = def->isa<Lit>()) {
         if (lit->type()->isa<Nat>())
