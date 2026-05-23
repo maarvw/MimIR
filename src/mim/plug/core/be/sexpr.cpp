@@ -118,7 +118,7 @@ public:
     void emit_decl(BB& bb, const Def* def);
     void emit_lam(Lam* lam, LamSet& rec_lams);
     std::string emit_var(BB& bb, const Def* var, const Def* type, bool meta_var = false);
-    std::string emit_head(BB& bb, Lam* lam, bool as_binding = false);
+    std::string emit_head(BB& bb, Lam* lam, bool nested = false);
     std::string emit_cons_type(BB& bb, View<const Def*> ops);
     std::string emit_type(BB& bb, const Def* type);
     std::string emit_cons(std::vector<std::string> op_vals);
@@ -378,14 +378,15 @@ void Emitter::emit_lam(Lam* lam, LamSet& rec_lams) {
     assert(lam2bb_.contains(lam));
     auto& bb = lam2bb_[lam];
 
-    // TODO: We need to prevent all prints and indentation for lambdas that are !is_bound(lam) because
-    // we are going to print them inline. We do however still need to call emit_lam for
-    // them to ensure the whole nest is traversed and their deps are emitted.
-    // - In rebuild_var, we need to ensure that nx is emitted as binding under test but
-    //   the anonymous cons are emitted inline
+    // Lambdas that are not bound to a variable will be printed inline.
+    // I.e. their definition will simply be emitted in place as in (app (lm x.x) 2)
+    // Those that are bound to a variable will be emitted here.
+    const bool EMIT = is_bound(lam);
+    // A lambda nested inside of a top-level lambda will be wrapped with a let-binding
+    // as in (root (lam x (let child (lam y y) (app child x))))
+    const bool NESTED = lam != root();
 
-    bool as_binding = lam != root();
-    std::print(func_impls_, "{}", emit_head(bb, lam, as_binding));
+    if (EMIT) std::print(func_impls_, "{}", emit_head(bb, lam, NESTED));
 
     ++tab;
     // Keeps count of parentheses opened by let-bindings that need to be closed later on
@@ -398,40 +399,44 @@ void Emitter::emit_lam(Lam* lam, LamSet& rec_lams) {
         }
     }
 
-    for (auto& term : bb.body()) {
-        auto opened = std::ranges::count(term.str(), '(');
-        auto closed = std::ranges::count(term.str(), ')');
-        unclosed_parens += opened - closed;
-        std::print(func_impls_, "{}", indent(tab.indent(), term.str()));
-    }
+    if (EMIT) {
+        for (auto& term : bb.body()) {
+            auto opened = std::ranges::count(term.str(), '(');
+            auto closed = std::ranges::count(term.str(), ')');
+            unclosed_parens += opened - closed;
+            std::print(func_impls_, "{}", indent(tab.indent(), term.str()));
+        }
 
-    for (auto& term : bb.tail())
-        std::print(func_impls_, "{}", indent(tab.indent(), term.str()));
+        for (auto& term : bb.tail())
+            std::print(func_impls_, "{}", indent(tab.indent(), term.str()));
+    }
 
     std::string closing_parens(unclosed_parens, ')');
     std::print(func_impls_, "{}", closing_parens);
     --tab;
 
-    // Close type annotation '@'
-    if (typed()) std::print(func_impls_, ")");
+    if (EMIT) {
+        // Close type annotation '@'
+        if (typed()) std::print(func_impls_, ")");
 
-    if (slotted()) {
-        --tab;
-        --tab;
-        if (as_binding) {
+        if (slotted()) {
             --tab;
-            // Close 'lam' and lam var 'scope'
-            std::print(func_impls_, "))");
-        } else {
-            // Close 'root', 'lam' and lam var 'scope'
-            std::print(func_impls_, ")))\n\n");
-        }
+            --tab;
+            if (NESTED) {
+                --tab;
+                // Close 'lam' and lam var 'scope'
+                std::print(func_impls_, "))");
+            } else {
+                // Close 'root', 'lam' and lam var 'scope'
+                std::print(func_impls_, ")))\n\n");
+            }
 
-    } else if (as_binding) {
-        --tab;
-        std::print(func_impls_, ")");
-    } else {
-        std::print(func_impls_, ")\n\n");
+        } else if (NESTED) {
+            --tab;
+            std::print(func_impls_, ")");
+        } else {
+            std::print(func_impls_, ")\n\n");
+        }
     }
 }
 
@@ -486,14 +491,14 @@ std::string Emitter::emit_var(BB& bb, const Def* var, const Def* type, bool meta
     return os.str();
 }
 
-std::string Emitter::emit_head(BB& bb, Lam* lam, bool as_binding) {
+std::string Emitter::emit_head(BB& bb, Lam* lam, bool nested) {
     std::ostringstream os;
 
     const std::string lam_kind = Lam::isa_returning(lam) ? "fun" : Lam::isa_cn(lam) ? "con" : "lam";
     const std::string ext      = lam->is_external() ? "extern" : "intern";
 
     if (slotted()) {
-        if (as_binding) {
+        if (nested) {
             std::print(os, "\n{}(let", tab);
             ++tab;
             std::print(os, "\n{}{}", tab, id(lam));
@@ -511,7 +516,7 @@ std::string Emitter::emit_head(BB& bb, Lam* lam, bool as_binding) {
             std::print(os, "\n{}({}", tab, lam_kind);
         }
 
-    } else if (as_binding) {
+    } else if (nested) {
         std::print(os, "\n{}(let", tab);
         ++tab;
         std::print(os, "\n{}{}", tab, id(lam));
