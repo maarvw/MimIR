@@ -116,7 +116,7 @@ public:
     bool isa_nested_proj(const Extract* extract);
 
     void emit_decl(BB& bb, const Def* def);
-    void emit_lam(Lam* lam, LamSet& rec_lams);
+    void emit_lam(Lam* parent, Lam* curr, LamSet& rec_lams);
     std::string emit_var(BB& bb, const Def* var, const Def* type, bool meta_var = false);
     std::string emit_head(BB& bb, Lam* lam, bool nested = false);
     std::string emit_cons_type(BB& bb, View<const Def*> ops);
@@ -319,7 +319,7 @@ void Emitter::finalize() {
 
     LamSet rec_lams;
     auto root_lam = nest().root()->mut()->as_mut<Lam>();
-    if (is_bound(root_lam)) emit_lam(root_lam, rec_lams);
+    if (is_bound(root_lam)) emit_lam(root_lam, root_lam, rec_lams);
 }
 
 std::set<Lam*> Emitter::next_lams(Lam* lam) {
@@ -371,29 +371,33 @@ void Emitter::emit_decl(BB& bb, const Def* def) {
     }
 }
 
-void Emitter::emit_lam(Lam* lam, LamSet& rec_lams) {
+void Emitter::emit_lam(Lam* parent, Lam* curr, LamSet& rec_lams) {
     // We do not want to re-emit recursively defined lambdas because it would result in an endless loop
-    auto lam_node = nest()[lam];
-    if (lam_node->is_directly_recursive() || lam_node->is_mutually_recursive()) rec_lams.emplace(lam);
-    assert(lam2bb_.contains(lam));
-    auto& bb = lam2bb_[lam];
+    auto lam_node = nest()[curr];
+    if (lam_node->is_directly_recursive() || lam_node->is_mutually_recursive()) rec_lams.emplace(curr);
+    assert(lam2bb_.contains(curr));
+    auto& bb = lam2bb_[curr];
 
     // Lambdas that are not bound to a variable will be printed inline.
     // I.e. their definition will simply be emitted in place as in (app (lm x.x) 2)
     // Those that are bound to a variable will be emitted here.
-    const bool EMIT = is_bound(lam);
+    const bool EMIT = is_bound(curr);
     // A lambda nested inside of a top-level lambda will be wrapped with a let-binding
     // as in (root (lam x (let child (lam y y) (app child x))))
-    const bool NESTED = lam != root();
+    const bool NESTED = curr != root();
 
-    if (EMIT) std::print(func_impls_, "{}", emit_head(bb, lam, NESTED));
+    if (EMIT) std::print(func_impls_, "{}", emit_head(bb, curr, NESTED));
 
     ++tab;
     // Keeps count of parentheses opened by let-bindings that need to be closed later on
     int unclosed_parens = 0;
-    for (auto next_lam : next_lams(lam)) {
+    for (auto next_lam : next_lams(curr)) {
         if (!rec_lams.contains(next_lam)) {
-            emit_lam(next_lam, rec_lams);
+            // The parent of the next lam shall be the parent of the current lam
+            // if the current lam doesn't get emitted (is inline). This way we maintain
+            // a correct child-parent relation between actually emitted lambdas.
+            auto next_parent = EMIT ? curr : parent;
+            emit_lam(next_parent, next_lam, rec_lams);
             // A lambda-binding in slotted opens two parentheses, one for the 'let' and one for the let 'scope'
             unclosed_parens += slotted() ? 2 : 1;
         }
