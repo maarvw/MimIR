@@ -745,35 +745,6 @@ std::string Emitter::emit_cons(std::vector<std::string> op_vals) {
     return os.str();
 }
 
-// Emits a curried application without its implicit/inferred arguments
-std::string Emitter::emit_explicit_app(BB& bb, const App* app) {
-    std::ostringstream os;
-
-    auto [callee, args] = app->uncurry();
-
-    std::vector<size_t> explicit_idxs;
-    auto arg_idx = 0;
-    auto curr_pi = callee->type();
-    while (curr_pi->isa<Pi>()) {
-        if (!Pi::isa_implicit(curr_pi)) explicit_idxs.push_back(arg_idx);
-        arg_idx++;
-        curr_pi = curr_pi->as<Pi>()->codom();
-    }
-    auto explicit_args = explicit_idxs | std::views::transform([&args](size_t idx) { return args[idx]; });
-
-    for ([[maybe_unused]] auto arg : explicit_args) {
-        std::print(os, "\n{}(app", tab);
-        ++tab;
-    }
-    for (auto [i, arg] : std::views::enumerate(explicit_args)) {
-        --tab;
-        if (i == 0) std::print(os, "\n{}{}", tab, emit_bb(bb, callee));
-        std::print(os, "\n{}{})", tab, emit_bb(bb, arg));
-    }
-
-    return os.str();
-}
-
 std::string Emitter::emit_node(BB& bb, const Def* def, std::string node_name, bool variadic, bool with_type) {
     std::ostringstream os;
 
@@ -916,28 +887,47 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
     } else if (auto var = def->isa<Var>()) {
         std::print(os, "\n{}{}", tab, id(var, true));
     } else if (auto app = def->isa<App>()) {
-        if (!is_bound(app))
-            std::print(os, "{}", emit_explicit_app(bb, app));
-        else {
-            bb.assign(tab, slotted(), id(app), "{}", emit_explicit_app(bb, app));
+        auto callee     = app->callee();
+        auto arg        = app->arg();
+        auto callee_val = emit_bb(bb, callee);
+        auto arg_val    = emit_bb(bb, arg);
+
+        std::ostringstream app_os;
+        if (Pi::isa_implicit(callee->type())) {
+            std::print(app_os, "{}", indent(tab.indent(), callee_val));
+        } else {
+            std::print(app_os, "\n{}(app", tab);
+            std::print(app_os, "{}", callee_val);
+            std::print(app_os, "{})", arg_val);
+        }
+        auto app_val = app_os.str();
+
+        if (is_bound(app)) {
+            bb.assign(tab, slotted(), id(app), [&](fe::Tab tab, auto& os) {
+                ++tab;
+                std::print(os, "{}", indent(tab.indent(), app_val));
+                --tab;
+            });
             std::print(os, "\n{}{}", tab, id(app, true));
+        } else {
+            std::print(os, "{}", app_val);
         }
     } else if (auto axm = def->isa<Axm>()) {
         std::print(os, "\n{}{}", tab, id(axm));
         emit_decl(bb, axm);
     } else if (auto bot = def->isa<Bot>()) {
-        if (!is_bound(bot))
-            std::print(os, "\n{}(bot {})", tab, emit_type(bb, bot->type()));
-        else {
+        if (is_bound(bot)) {
             bb.assign(tab, slotted(), id(bot), "(bot {})", emit_type(bb, bot->type()));
             std::print(os, "\n{}{}", tab, id(bot, true));
+        } else {
+            std::print(os, "\n{}(bot {})", tab, emit_type(bb, bot->type()));
         }
     } else if (auto top = def->isa<Top>()) {
-        if (!is_bound(top))
-            std::print(os, "\n{}(top {})", tab, emit_type(bb, top->type()));
-        else {
+        if (is_bound(top)) {
             bb.assign(tab, slotted(), id(top), "(top {})", emit_type(bb, top->type()));
             std::print(os, "\n{}{}", tab, id(top, true));
+        } else {
+            std::print(os, "\n{}(top {})", tab, emit_type(bb, top->type()));
         }
     } else if (def->isa_imm<Rule>()) {
         assert("false" && "TODO no vars in immutable Rule");
