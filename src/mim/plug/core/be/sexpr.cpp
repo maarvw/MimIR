@@ -904,8 +904,8 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
         std::ostringstream app_os;
         if (Pi::isa_implicit(callee->type())) {
             // TODO: The callee ends up being type annotated twice, once
-            // with its own annotation and another time with the application
-            // it was initially a part of.
+            // with its own annotation and another time with the annotation
+            // of its surrounding application that is now not being emitted.
             std::print(app_os, "{}", indent(tab.indent(), callee_val));
         } else {
             std::print(app_os, "\n{}(app", tab);
@@ -917,7 +917,9 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
         if (is_bound(app)) {
             bb.assign(tab, slotted(), id(app), [&](fe::Tab tab, auto& os) {
                 ++tab;
+                if (typed()) std::print(os, "\n{}(@ {}", tab, emit_type(bb, app->type()));
                 std::print(os, "{}", indent(tab.indent(), app_val));
+                if (typed()) std::print(os, ")");
                 --tab;
             });
             std::print(os, "\n{}{}", tab, id(app, true));
