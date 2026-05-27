@@ -94,12 +94,12 @@ struct BB {
     std::set<std::string> assigned;
 };
 
-class Emitter : public mim::Emitter<std::string, std::string, BB, Emitter, true> {
+class Emitter : public mim::Emitter<std::string, std::string, BB, Emitter> {
 public:
-    using Super = mim::Emitter<std::string, std::string, BB, Emitter, true>;
+    using Super = mim::Emitter<std::string, std::string, BB, Emitter>;
 
     Emitter(World& world, std::ostream& ostream, bool typed = false, bool slotted = false)
-        : Super(world, "sexpr_emitter", ostream) {
+        : Super(world, "sexpr_emitter", ostream, true) {
         typed_            = typed;
         slotted_          = slotted;
         types_enabled_    = true;
@@ -384,7 +384,7 @@ void Emitter::emit_decl(BB& bb, const Def* def) {
 void Emitter::emit_lam(Lam* parent, Lam* curr, LamSet& rec_lams) {
     // We do not want to re-emit recursively defined lambdas because it would result in an endless loop
     auto lam_node = nest()[curr];
-    if (lam_node->is_directly_recursive() || lam_node->is_mutually_recursive()) rec_lams.emplace(curr);
+    if (lam_node->is_recursive()) rec_lams.emplace(curr);
     assert(lam2bb_.contains(curr));
     auto& bb        = lam2bb_[curr];
     auto& parent_bb = lam2bb_[parent];

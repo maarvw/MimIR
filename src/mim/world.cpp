@@ -694,8 +694,7 @@ Defs World::reduce(const Var* var, const Def* arg) {
     return reduct->defs();
 }
 
-template<bool Schedule>
-void World::for_each(bool elide_empty, std::function<void(Def*)> f) {
+void World::for_each(bool elide_empty, std::function<void(Def*)> f, bool schedule /* = false */) {
     unique_queue<MutSet> queue;
     for (auto mut : externals().muts())
         queue.push(mut);
@@ -712,14 +711,12 @@ void World::for_each(bool elide_empty, std::function<void(Def*)> f) {
 
     // Schedules the mutables in post-order to ensure that they
     // are emitted in the correct order of dependencies.
-    if constexpr (Schedule) {
+    if (schedule) {
         const auto mut_nest = Nest(muts);
-        auto schedule       = Scheduler::schedule(mut_nest);
-        std::ranges::reverse(schedule);
-        auto closed_schedule = schedule | std::views::filter([&](Def* mut) {
-                                   return mut->is_closed() && (!elide_empty || mut->is_set());
-                               });
-        for (auto* mut : closed_schedule)
+        auto schedule       = Scheduler::schedule(mut_nest) | std::views::reverse | std::views::filter([&](Def* mut) {
+                            return mut->is_closed() && (!elide_empty || mut->is_set());
+                        });
+        for (auto* mut : schedule)
             f(mut);
     } else {
         for (auto* mut : muts)
@@ -765,8 +762,6 @@ template const Def* World::app<true>(const Def*, const Def*);
 template const Def* World::app<false>(const Def*, const Def*);
 template const Def* World::implicit_app<true>(const Def*, const Def*);
 template const Def* World::implicit_app<false>(const Def*, const Def*);
-template void World::for_each<true>(bool elide_empty, std::function<void(Def*)> f);
-template void World::for_each<false>(bool elide_empty, std::function<void(Def*)> f);
 #endif
 
 } // namespace mim

@@ -386,12 +386,7 @@ public:
 
     /// @name Sigma
     ///@{
-    Sigma* mut_sigma(const Def* type, size_t size) {
-        // Ensures that the corresponding @p size literal exists in the world
-        // and may be accessed even if the world is in a frozen state.
-        lit_nat(size);
-        return insert<Sigma>(type, size);
-    }
+    Sigma* mut_sigma(const Def* type, size_t size) { return insert<Sigma>(type, size); }
     /// A *mutable* Sigma of type @p level.
     template<level_t level = 0>
     Sigma* mut_sigma(size_t size) {
@@ -642,14 +637,16 @@ public:
     /// @name for_each
     /// Visits all closed mutables in this World.
     ///@{
-    template<bool Schedule = false>
-    void for_each(bool elide_empty, std::function<void(Def*)>);
+    void for_each(bool elide_empty, std::function<void(Def*)>, bool schedule = false);
 
-    template<class M, bool Schedule = false>
-    void for_each(bool elide_empty, std::function<void(M*)> f) {
-        for_each<Schedule>(elide_empty, [f](Def* m) {
-            if (auto mut = m->template isa<M>()) f(mut);
-        });
+    template<class M>
+    void for_each(bool elide_empty, std::function<void(M*)> f, bool schedule = false) {
+        for_each(
+            elide_empty,
+            [f](Def* m) {
+                if (auto mut = m->template isa<M>()) f(mut);
+            },
+            schedule);
     }
     ///@}
 
