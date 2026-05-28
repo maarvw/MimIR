@@ -150,8 +150,14 @@ lam %tensor.dot_product
 ///
 /// Computes the dot product of two 2-dimensional tensors.
 ///
-lam %tensor.product_2d (R: Ring) {m k l: Nat} (t1: «m, k; R#T», t2: «k, l; R#T»): «m, l; R#T»
+axm %tensor.product_2d: [R: Ring]
+                      → {m k l: Nat}
+                      → [t1: «m, k; R#T», t2: «k, l; R#T»]
+                      → «m, l; R#T»;
+
+lam %tensor.product_2d_impl (R: Ring) {m k l: Nat} (t1: «m, k; R#T», t2: «k, l; R#T»): «m, l; R#T»
         = %tensor.dot_product R @(2, 2) (1_2, 0_2, (), ()) @((m, k), (k, l)) (t1, t2);
+
 ///
 /// ### %%tensor.transpose
 ///
@@ -231,4 +237,5 @@ lam %tensor.select {T: *} {r: Nat, s: «r; Nat»} (is: [«s; Bool», «s; T», �
 /// ## Phases
 ///
 axm %tensor.lower_tensor: %compile.Phase;
+axm %tensor.lower_map_reduce: %compile.Phase;
 axm %tensor.fuse_tensor: %compile.Phase;

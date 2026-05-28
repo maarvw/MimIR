@@ -43,8 +43,9 @@ lam extern _default_compile (): %compile.Phase =
         %compile.sym_expr_opt,
         cond_phase "tensor" (
             %compile.phases ff (
-                %tensor.fuse_tensor,
                 %tensor.lower_tensor,
+                %tensor.fuse_tensor,
+                %tensor.lower_map_reduce,
             )
         ),
         cond_phase "affine" %affine.lower_for_phase,

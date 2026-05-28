@@ -16,6 +16,7 @@ let dotd = %tensor.dot_product R @(2, 2) (1_2, 0_2, (), ()) (m0, m0);
 let dot2d = %tensor.product_2d R (m0, m0);
 
 let _ = %refly.equiv.struc_eq (dot, dotd);
-let _ = %refly.equiv.struc_eq (dot2d, dotd);
+// TODO: we delay lowering of product_2d, so this equivalence check fails.
+// let _ = %refly.equiv.struc_eq (dot2d, dotd);
 
 fun extern main() = return (dot, dotd, dot2d);

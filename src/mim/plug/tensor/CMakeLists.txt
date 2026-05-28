@@ -3,6 +3,7 @@ add_mim_plugin(tensor
         tensor.cpp
         normalizers.cpp
         phase/lower.cpp
+        phase/lower_map_reduce.cpp
         phase/fuse.cpp
     INSTALL
 )
