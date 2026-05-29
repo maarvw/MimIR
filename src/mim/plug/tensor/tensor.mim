@@ -22,7 +22,7 @@ let Ring = [
     add: [T, T] → T,
     mul: [T, T] → T,
 ];
-/// let nat_ring = (Nat, 0, 1, %core.nat.add, %core.nat.mul);
+/// let nat_ring = (Nat, 0, %core.nat.add, %core.nat.mul);
 ///
 /// ## Operations
 ///
@@ -57,7 +57,7 @@ axm %tensor.map_reduce: {nis: Nat}
                       → {To: *, Ro: Nat}
                       → [So: «Ro; Nat»]
                       → {Tis: «nis; *», Ris: «i: nis; Nat», Sis: «i:nis; «Ris#i; Nat»»}
-                      → [f: Fn [To, «i: nis; Tis#i»] → [To], init: To]
+                      → [f: Fn [To, «i: nis; Tis#i»] → To, init: To]
                       → [subs: «i: nis; « Ris#i; Nat»»]
                       → [is: «i: nis; «Sis#i; Tis#i» »]
                       → «So; To», normalize_map_reduce;
@@ -70,7 +70,7 @@ axm %tensor.map_reduce_pure: {nis: Nat}
                            → {To: *, Ro: Nat}
                            → [So: «Ro; Nat»]
                            → {Tis: «nis; *», Ris: «i: nis; Nat», Sis: «i:nis; «Ris#i; Nat»»}
-                           → [f: [To, «i: nis; Tis#i»] → [To], init: To]
+                           → [f: [To, «i: nis; Tis#i»] → To, init: To]
                            → [subs: «i: nis; « Ris#i; Nat»»]
                            → [is: «i: nis; «Sis#i; Tis#i» »]
                            → «So; To»;
@@ -79,7 +79,7 @@ lam %tensor.map_reduce_pure_impl {nis: Nat}
                                  {To: *, Ro: Nat}
                                  (So: «Ro; Nat»)
                                  {Tis: «nis; *», Ris: «i: nis; Nat», Sis: «i:nis; «Ris#i; Nat»»}
-                                 (f: [To, «i: nis; Tis#i»] → [To], init: To)
+                                 (f: [To, «i: nis; Tis#i»] → To, init: To)
                                  (subs: «i: nis; « Ris#i; Nat»»)
                                  (is: «i: nis; «Sis#i; Tis#i» »)
                                  : «So; To»
@@ -219,7 +219,7 @@ axm %tensor.broadcast:  {T: *, r: Nat}
 ///
 /// ### %%tensor.broadcast_in_dim
 ///
-/// Transposes and expandes the dimensions of `input` to fit `s_out`.
+/// Transposes and expands the dimensions of `input` to fit `s_out`.
 /// Each dimensions is mapped to the corresponding `index` output dimension.
 /// The holes are filled by broadcasting.
 /// Todo: We could probably just implement this in terms of %tensor.broadcast and %tensor.transpose directly?
