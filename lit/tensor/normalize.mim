@@ -35,7 +35,7 @@ let _ = %refly.equiv.struc_eq (s5, s6);
 
 fun f1 (n m: Nat): Nat = return m;
 
-lam f(): Ring = (Nat, 0, %core.nat.add, %core.nat.mul);
+lam f(): %tensor.Ring = (Nat, 0, %core.nat.add, %core.nat.mul);
 let R = f ();
 
 let r = 2;

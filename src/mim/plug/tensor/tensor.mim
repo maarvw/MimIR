@@ -16,7 +16,7 @@ plugin vec;
 ///
 /// Represents an [algebraic Ring](https://en.wikipedia.org/wiki/Ring_(mathematics)).
 ///
-let Ring = [
+let %tensor.Ring = [
     T: *,
     _0: T,
     add: [T, T] → T,
@@ -99,7 +99,7 @@ lam %tensor.map_reduce_pure_impl {nis: Nat}
 /// https://openxla.org/stablehlo/spec#dot_general
 ///
 lam type {T: *} (x: T): * = T;
-fun dot_general_fun [R: Ring] [x: R#T, [y: R#T, z: R#T]]@tt: R#T = return (R#add (x, (R#mul (y, z))));
+fun dot_general_fun [R: %tensor.Ring] [x: R#T, [y: R#T, z: R#T]]@tt: R#T = return (R#add (x, (R#mul (y, z))));
 lam dot_general_pick {n: Nat} {na nb nc: Nat} (a: «na; Idx n», b: «nb; Idx n», c: «nc; Idx n») (off_1 off_2: Nat) (i: Idx n): Nat =
   let (ab, ai) = %vec.first (%core.icmp.e @n) (a, i);
   let (bb, bi) = %vec.first (%core.icmp.e @n) (b, i);
@@ -135,7 +135,7 @@ lam dot_general_shape {r1 r2: Nat} {nc nb: Nat}
       let s12_res  = %vec.cat (s1_res, s2_res);
       let s_out    = %vec.cat (bs, s12_res);
       s_out;
-axm %tensor.dot_product: [R: Ring]
+axm %tensor.dot_product: [R: %tensor.Ring]
                        → {r1 r2: Nat}
                        → {nc nb: Nat}
                        → [c1: «nc; Idx r1», c2: «nc; Idx r2», b1: «nb; Idx r1», b2: «nb; Idx r2»]
@@ -144,7 +144,7 @@ axm %tensor.dot_product: [R: Ring]
                        → «dot_general_shape (c1, c2, b1, b2) (s1, s2); R#T»;
 
 lam %tensor.dot_product_impl
-  (R: Ring) {r1 r2: Nat} {nc nb: Nat}
+  (R: %tensor.Ring) {r1 r2: Nat} {nc nb: Nat}
   (c1: «nc; Idx r1», c2: «nc; Idx r2», b1: «nb; Idx r1», b2: «nb; Idx r2»)
   {s1: «r1; Nat», s2: «r2; Nat»} (a: «s1; R#T», b: «s2; R#T»)
     : let s_out = dot_general_shape (c1, c2, b1, b2) (s1, s2);
@@ -167,12 +167,12 @@ lam %tensor.dot_product_impl
 ///
 /// Computes the dot product of two 2-dimensional tensors.
 ///
-axm %tensor.product_2d: [R: Ring]
+axm %tensor.product_2d: [R: %tensor.Ring]
                       → {m k l: Nat}
                       → [t1: «m, k; R#T», t2: «k, l; R#T»]
                       → «m, l; R#T»;
 
-lam %tensor.product_2d_impl (R: Ring) {m k l: Nat} (t1: «m, k; R#T», t2: «k, l; R#T»): «m, l; R#T»
+lam %tensor.product_2d_impl (R: %tensor.Ring) {m k l: Nat} (t1: «m, k; R#T», t2: «k, l; R#T»): «m, l; R#T»
         = %tensor.dot_product_impl R @(2, 2) (1_2, 0_2, (), ()) @((m, k), (k, l)) (t1, t2);
 
 ///

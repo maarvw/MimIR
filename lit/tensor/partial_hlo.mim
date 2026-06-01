@@ -10,7 +10,7 @@ plugin math;
 let f32 = %math.f32;
 let F32 = %math.F32;
 
-let R: Ring = (F32, 0: F32, %math.arith.add @f32 0, %math.arith.mul @f32 0);
+let R: %tensor.Ring = (F32, 0: F32, %math.arith.add @f32 0, %math.arith.mul @f32 0);
 
 lam F32_add {r: Nat, s: «r; Nat»} [is: [«s; F32», «s; F32»]] : «s; F32» = %tensor.binary (%math.arith.add @f32 0) is;
 lam F32_sub {r: Nat, s: «r; Nat»} [is: [«s; F32», «s; F32»]] : «s; F32» = %tensor.binary (%math.arith.sub @f32 0) is;
