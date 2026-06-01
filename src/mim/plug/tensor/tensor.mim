@@ -112,26 +112,14 @@ lam dot_general_pick {n: Nat} {na nb nc: Nat} (a: «na; Idx n», b: «nb; Idx n�
   ((ai_out, ci_out)#cb, bi_nat)#bb;
 lam dot_general_shape {r1 r2: Nat} {nc nb: Nat}
   (c1: «nc; Idx r1», c2: «nc; Idx r2», b1: «nb; Idx r1», b2: «nb; Idx r2»)
-  (s1: «r1; Nat», s2: «r2; Nat»):
-      let bs       = ‹i: nb; s1#(b1#i)›;
-      let bc_1     = %vec.cat (b1, c1);
-      let s1_res   = %vec.diff (s1, bc_1);
-      let n_s1_res = %vec.len s1_res;
-      let bc_2     = %vec.cat (b2, c2);
-      let s2_res   = %vec.diff (s2, bc_2);
-      let n_s2_res = %vec.len s2_res;
-      let s12_res  = %vec.cat (s1_res, s2_res);
-      let s_out    = %vec.cat (bs, s12_res);
-      type s_out =
+  (s1: «r1; Nat», s2: «r2; Nat») =
       let bs_check = ‹i: nb; %refly.check (%core.ncmp.e ((s1#(b1#i), s2#(b2#i))), s1#(b1#i), "batching dims don't match")›;
       let cs_check = ‹i: nc; %refly.check (%core.ncmp.e ((s1#(c1#i), s2#(c2#i))), s1#(c1#i), "contracting dims don't match")›;
       let bs       = ‹i: nb; s1#(b1#i)›;
       let bc_1     = %vec.cat (b1, c1);
       let s1_res   = %vec.diff (s1, bc_1);
-      let n_s1_res = %vec.len s1_res;
       let bc_2     = %vec.cat (b2, c2);
       let s2_res   = %vec.diff (s2, bc_2);
-      let n_s2_res = %vec.len s2_res;
       let s12_res  = %vec.cat (s1_res, s2_res);
       let s_out    = %vec.cat (bs, s12_res);
       s_out;
