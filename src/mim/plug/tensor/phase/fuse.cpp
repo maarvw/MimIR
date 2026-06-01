@@ -40,17 +40,17 @@ const Def* Fuse::fuse_map_reduce(const App* app) {
     auto [To, Ro]        = ToRo->projs<2>();
     auto is              = rewrite(app->arg());
 
-    app->world().DLOG("considering map_reduce for fusion:");
-    app->world().DLOG("  subs = {} : {}", subs, subs->type());
-    app->world().DLOG("  comb = {} : {}", comb, comb->type());
-    app->world().DLOG("  init = {} : {}", init, init->type());
-    app->world().DLOG("  Tis = {} : {}", Tis, Tis->type());
-    app->world().DLOG("  Ris = {} : {}", Ris, Ris->type());
-    app->world().DLOG("  Sis = {} : {}", Sis, Sis->type());
-    app->world().DLOG("  To = {} : {}", To, To->type());
-    app->world().DLOG("  Ro = {} : {}", Ro, Ro->type());
-    app->world().DLOG("  nis = {} : {}", nis, nis->type());
-    app->world().DLOG("  is = {} : {}", is, is->type());
+    DLOG("considering map_reduce for fusion:");
+    DLOG("  subs = {} : {}", subs, subs->type());
+    DLOG("  comb = {} : {}", comb, comb->type());
+    DLOG("  init = {} : {}", init, init->type());
+    DLOG("  Tis = {} : {}", Tis, Tis->type());
+    DLOG("  Ris = {} : {}", Ris, Ris->type());
+    DLOG("  Sis = {} : {}", Sis, Sis->type());
+    DLOG("  To = {} : {}", To, To->type());
+    DLOG("  Ro = {} : {}", Ro, Ro->type());
+    DLOG("  nis = {} : {}", nis, nis->type());
+    DLOG("  is = {} : {}", is, is->type());
 
     auto nis_lit = nis->isa<Lit>();
     if (!nis_lit) return nullptr;
@@ -272,7 +272,7 @@ const Def* Fuse::fuse_map_reduce(const App* app) {
 const Def* Fuse::rewrite_imm_App(const App* app) {
     if (auto mr = Axm::isa<tensor::map_reduce>(app)) {
         if (auto res = fuse_map_reduce(mr)) {
-            new_world().DLOG("Fused map_reduce at {} into a new map_reduce {}", app, res);
+            DLOG("Fused map_reduce at {} into a new map_reduce {}", app, res);
             return res;
         }
     }

@@ -41,14 +41,14 @@ const Def* Lower::lower_broadcast_in_dim(const App* app) {
     auto [s_in, s_out, input, index] = arg->projs<4>();
     auto callee                      = c->as<App>();
     auto [T, r_in, r_out]            = callee->args<3>();
-    w.DLOG("lower_broadcast_in_dim");
-    w.DLOG("    s_out = {} : {}", s_out, s_out->type());
-    w.DLOG("    input = {} : {}", input, input->type());
-    w.DLOG("    index = {} : {}", index, index->type());
-    w.DLOG("    T = {} : {}", T, T->type());
-    w.DLOG("    r_in = {} : {}", r_in, r_in->type());
-    w.DLOG("    r_out = {} : {}", r_out, r_out->type());
-    w.DLOG("    s_in = {} : {}", s_in, s_in->type());
+    DLOG("lower_broadcast_in_dim");
+    DLOG("    s_out = {} : {}", s_out, s_out->type());
+    DLOG("    input = {} : {}", input, input->type());
+    DLOG("    index = {} : {}", index, index->type());
+    DLOG("    T = {} : {}", T, T->type());
+    DLOG("    r_in = {} : {}", r_in, r_in->type());
+    DLOG("    r_out = {} : {}", r_out, r_out->type());
+    DLOG("    s_in = {} : {}", s_in, s_in->type());
 
     auto r_in_lit = r_in->isa<Lit>();
     if (!r_in_lit) return nullptr;

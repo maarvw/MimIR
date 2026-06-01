@@ -23,31 +23,31 @@ const Def* LowerMapReduce::lower_get(const App* app) {
     auto callee       = c->as<App>();
     auto [T, r, s]    = callee->args<3>();
 
-    w.DLOG("lower_get");
-    w.DLOG("    arr = {} : {}", arr, arr->type());
-    if (auto arr_seq = arr->type()->isa<Seq>()) w.DLOG("    arr shape = {}", arr_seq->arity());
-    w.DLOG("    index = {} : {}", index, index->type());
-    w.DLOG("    T = {} : {}", T, T->type());
-    w.DLOG("    r = {} : {}", r, r->type());
-    w.DLOG("    s = {} : {}", s, s->type());
+    DLOG("lower_get");
+    DLOG("    arr = {} : {}", arr, arr->type());
+    if (auto arr_seq = arr->type()->isa<Seq>()) DLOG("    arr shape = {}", arr_seq->arity());
+    DLOG("    index = {} : {}", index, index->type());
+    DLOG("    T = {} : {}", T, T->type());
+    DLOG("    r = {} : {}", r, r->type());
+    DLOG("    s = {} : {}", s, s->type());
 
     auto size = index->num_projs();
-    w.DLOG("size = {}", size);
+    DLOG("size = {}", size);
     if (size == 1) {
-        w.DLOG("index of size 1, extract");
+        DLOG("index of size 1, extract");
         return w.extract(arr, index);
     }
 
     auto r_lit = r->isa<Lit>();
     if (!r_lit) {
-        w.WLOG("{} doesn't have a lowering-time known rank: {}", app, r);
+        WLOG("{} doesn't have a lowering-time known rank: {}", app, r);
         return nullptr;
     }
     auto r_nat    = r_lit->get<u64>();
     auto curr_arr = arr;
     for (auto ri = 0_u64; ri < r_nat; ++ri) {
         auto idx = index->proj(r_nat, ri);
-        w.DLOG("    idx = {} : {}", idx, idx->type());
+        DLOG("    idx = {} : {}", idx, idx->type());
         curr_arr = w.extract(curr_arr, idx);
     }
     return curr_arr;
@@ -60,27 +60,27 @@ const Def* LowerMapReduce::lower_set(const App* app) {
 
     auto [arr, index, x] = arg->projs<3>();
 
-    w.DLOG("lower_set");
-    w.DLOG("    arr = {} : {}", arr, arr->type());
-    w.DLOG("    index = {} : {}", index, index->type());
-    w.DLOG("    x = {} : {}", x, x->type());
+    DLOG("lower_set");
+    DLOG("    arr = {} : {}", arr, arr->type());
+    DLOG("    index = {} : {}", index, index->type());
+    DLOG("    x = {} : {}", x, x->type());
 
     auto size = index->num_projs();
-    w.DLOG("    size = {}", size);
+    DLOG("    size = {}", size);
     if (size == 1) {
-        w.DLOG("index of size 1, insert");
+        DLOG("index of size 1, insert");
         return w.insert(arr, index, x);
     }
 
     auto callee    = c->as<App>();
     auto [T, r, s] = callee->args<3>();
-    w.DLOG("    T = {} : {}", T, T->type());
-    w.DLOG("    r = {} : {}", r, r->type());
-    w.DLOG("    s = {} : {}", s, s->type());
+    DLOG("    T = {} : {}", T, T->type());
+    DLOG("    r = {} : {}", r, r->type());
+    DLOG("    s = {} : {}", s, s->type());
 
     auto r_lit = r->isa<Lit>();
     if (!r_lit) {
-        w.WLOG("{} doesn't have a lowering-time known rank: {}", app, r);
+        WLOG("{} doesn't have a lowering-time known rank: {}", app, r);
         return nullptr;
     }
 
@@ -90,15 +90,15 @@ const Def* LowerMapReduce::lower_set(const App* app) {
     arrs_to_insert_into[0] = arr;
     for (auto ri = 0_u64; ri < r_nat - 1; ++ri) {
         auto idx = index->proj(r_nat, ri);
-        w.DLOG("    extract idx = {} : {}", idx, idx->type());
+        DLOG("    extract idx = {} : {}", idx, idx->type());
         arrs_to_insert_into[ri + 1] = w.extract(arrs_to_insert_into[ri], idx);
     }
 
     auto new_arr = x;
     for (auto ri = static_cast<s64>(r_nat - 1); ri >= 0; --ri) {
         auto idx = index->proj(r_nat, ri);
-        w.DLOG("    idx = {} : {}", idx, idx->type());
-        w.DLOG("    arr_to_insert_into = {} : {}", arrs_to_insert_into[ri], arrs_to_insert_into[ri]->type());
+        DLOG("    idx = {} : {}", idx, idx->type());
+        DLOG("    arr_to_insert_into = {} : {}", arrs_to_insert_into[ri], arrs_to_insert_into[ri]->type());
 
         new_arr = w.insert(arrs_to_insert_into[ri], idx, new_arr);
     }
@@ -111,12 +111,12 @@ const Def* LowerMapReduce::rec_broadcast(const Def* s_in, const Def* s_out, cons
     if (i == r) return input;
 
     auto s_in_ri = s_in->proj(r, i), s_out_ri = s_out->proj(r, i);
-    w.DLOG("rec_broadcast");
-    w.DLOG("    r = {}", r);
-    w.DLOG("    i = {}", i);
-    w.DLOG("    s_in_ri = {} : {}", s_in_ri, s_in_ri->type());
-    w.DLOG("    s_out_ri = {} : {}", s_out_ri, s_out_ri->type());
-    w.DLOG("    input = {} : {}", input, input->type());
+    DLOG("rec_broadcast");
+    DLOG("    r = {}", r);
+    DLOG("    i = {}", i);
+    DLOG("    s_in_ri = {} : {}", s_in_ri, s_in_ri->type());
+    DLOG("    s_out_ri = {} : {}", s_out_ri, s_out_ri->type());
+    DLOG("    input = {} : {}", input, input->type());
 
     if (s_in_ri == s_out_ri) {
         if (auto s_in_lit = s_in_ri->isa<Lit>()) {
@@ -126,18 +126,18 @@ const Def* LowerMapReduce::rec_broadcast(const Def* s_in, const Def* s_out, cons
         } else {
             // TODO: we could probably support non-literal sizes as well, but we would need to generate loops to copy
             // the data instead of just packing it.
-            w.WLOG("dimension {} of the input and output are equal but not literal: {} : {}", i, s_in_ri,
+            WLOG("dimension {} of the input and output are equal but not literal: {} : {}", i, s_in_ri,
                    s_in_ri->type());
             return nullptr;
         }
     }
 
     if (auto s_in_lit = s_in_ri->isa<Lit>(); s_in_lit && s_in_lit->get<u64>() == 1) {
-        w.DLOG("dimension {} of the input is 1, can be broadcasted to dimension {} of the output", i, s_out_ri);
+        DLOG("dimension {} of the input is 1, can be broadcasted to dimension {} of the output", i, s_out_ri);
         return w.pack(s_out_ri, rec_broadcast(s_in, s_out, input, r, i + 1));
     }
 
-    w.WLOG("cannot broadcast dimension {} of size {} to size {}", i, s_in_ri, s_out_ri);
+    WLOG("cannot broadcast dimension {} of size {} to size {}", i, s_in_ri, s_out_ri);
     return nullptr;
 }
 
@@ -149,16 +149,16 @@ const Def* LowerMapReduce::lower_broadcast(const App* app) {
     auto [s_in, s_out, input] = arg->projs<3>();
     auto callee               = c->as<App>();
     auto [T, r]               = callee->args<2>();
-    w.DLOG("lower_broadcast");
-    w.DLOG("    s_out = {} : {}", s_out, s_out->type());
-    w.DLOG("    input = {} : {}", input, input->type());
-    w.DLOG("    T = {} : {}", T, T->type());
-    w.DLOG("    r = {} : {}", r, r->type());
-    w.DLOG("    s_in = {} : {}", s_in, s_in->type());
+    DLOG("lower_broadcast");
+    DLOG("    s_out = {} : {}", s_out, s_out->type());
+    DLOG("    input = {} : {}", input, input->type());
+    DLOG("    T = {} : {}", T, T->type());
+    DLOG("    r = {} : {}", r, r->type());
+    DLOG("    s_in = {} : {}", s_in, s_in->type());
 
     auto r_lit = r->isa<Lit>();
     if (!r_lit) {
-        w.WLOG("{} doesn't have a lowering-time known rank: {}", app, r);
+        WLOG("{} doesn't have a lowering-time known rank: {}", app, r);
         return nullptr;
     }
     // r_nat will never be 0, as we would have normalized this case away already
@@ -175,7 +175,7 @@ const Def* LowerMapReduce::lower_broadcast(const App* app) {
     }
 
     auto result = rec_broadcast(s_in, s_out, input, r_nat, 0);
-    w.DLOG("result of rec_broadcast = {} : {}", result, result->type());
+    DLOG("result of rec_broadcast = {} : {}", result, result->type());
     return result;
 }
 
@@ -347,21 +347,21 @@ const Def* LowerMapReduce::lower_map_reduce(const App* app) {
     auto [Tis, Ris, Sis] = TisRisSis->projs<3>();
     auto [T, n]          = ToRo->projs<2>();
 
-    w.DLOG("lower map_reduce");
-    w.DLOG("type : {}", type);
-    w.DLOG("meta variables:");
-    w.DLOG("  n = {}", n);
-    w.DLOG("  S = {}", So);
-    w.DLOG("  T = {}", T);
-    w.DLOG("  nis = {}", nis);
-    w.DLOG("  Ris = {} : {}", Ris, Ris->type());
-    w.DLOG("  Tis = {} : {}", Tis, Tis->type());
-    w.DLOG("  Sis = {} : {}", Sis, Sis->type());
-    w.DLOG("arguments:");
-    w.DLOG("  zero = {}", zero);
-    w.DLOG("  comb = {} : {}", comb, comb->type());
-    w.DLOG("  subs = {} : {}", subs, subs->type());
-    w.DLOG("  inputs = {} : {}", inputs, inputs->type());
+    DLOG("lower map_reduce");
+    DLOG("type : {}", type);
+    DLOG("meta variables:");
+    DLOG("  n = {}", n);
+    DLOG("  S = {}", So);
+    DLOG("  T = {}", T);
+    DLOG("  nis = {}", nis);
+    DLOG("  Ris = {} : {}", Ris, Ris->type());
+    DLOG("  Tis = {} : {}", Tis, Tis->type());
+    DLOG("  Sis = {} : {}", Sis, Sis->type());
+    DLOG("arguments:");
+    DLOG("  zero = {}", zero);
+    DLOG("  comb = {} : {}", comb, comb->type());
+    DLOG("  subs = {} : {}", subs, subs->type());
+    DLOG("  inputs = {} : {}", inputs, inputs->type());
 
     // Our goal is to generate a call to a function that performs:
     // ```
@@ -380,7 +380,7 @@ const Def* LowerMapReduce::lower_map_reduce(const App* app) {
     auto n_lit   = n->isa<Lit>();
     auto nis_lit = nis->isa<Lit>();
     if (!n_lit || !nis_lit) {
-        w.DLOG("n or nis is not a literal");
+        DLOG("n or nis is not a literal");
         return nullptr;
     }
 
@@ -392,22 +392,22 @@ const Def* LowerMapReduce::lower_map_reduce(const App* app) {
         auto [in_indices, out_indices, dims, n_input] = extract_indices(n_nat, nis_nat, So, Ris, Sis, subs);
 
         for (auto idx : out_indices)
-            w.ILOG("output index {} with dim {}", idx, dims[idx]);
+            ILOG("output index {} with dim {}", idx, dims[idx]);
         for (auto idx : in_indices)
-            w.ILOG("input index {} with dim {}", idx, dims[idx]);
+            ILOG("input index {} with dim {}", idx, dims[idx]);
 
         auto fun = w.mut_fun(inputs->type(), type)->set("mapRed");
-        w.DLOG("fun {} : {}", fun, fun->type());
+        DLOG("fun {} : {}", fun, fun->type());
 
         auto ds_fun = direct::op_cps2ds_dep(fun)->set("dsFun");
-        w.DLOG("ds_fun {} : {}", ds_fun, ds_fun->type());
+        DLOG("ds_fun {} : {}", ds_fun, ds_fun->type());
         auto call = w.app(ds_fun, inputs)->set("call");
-        w.DLOG("call {} : {}", call, call->type());
+        DLOG("call {} : {}", call, call->type());
 
         auto new_inputs = fun->var(0)->set("is");
 
-        w.DLOG("inputs = {} : {}", inputs, inputs->type());
-        w.DLOG("new_inputs = {} : {}", new_inputs, new_inputs->type());
+        DLOG("inputs = {} : {}", inputs, inputs->type());
+        DLOG("new_inputs = {} : {}", new_inputs, new_inputs->type());
 
         // flowchart:
         // ```
@@ -443,11 +443,11 @@ const Def* LowerMapReduce::lower_map_reduce(const App* app) {
         auto element_acc = zero;
         element_acc->set("acc");
         assert(wb_matrix);
-        w.DLOG("wb_matrix {} : {}", wb_matrix, wb_matrix->type());
+        DLOG("wb_matrix {} : {}", wb_matrix, wb_matrix->type());
 
         // Write back element to matrix. Set this as return after all inner loops.
         auto write_back = w.mut_con(T)->set("matrixWriteBack");
-        w.DLOG("write_back {} : {}", write_back, write_back->type());
+        DLOG("write_back {} : {}", write_back, write_back->type());
         auto element_final = write_back->var(0);
 
         DefVec output_iterators;
@@ -455,7 +455,7 @@ const Def* LowerMapReduce::lower_map_reduce(const App* app) {
             auto idx = out_indices[i];
             if (idx != i) error("output indices must be consecutive 0..n-1 but {} != {}", idx, i);
             if (dims[idx]->isa<Lit>() && dims[idx]->as<Lit>()->get<u64>() == 1) {
-                w.DLOG("dimension {} is 1, no iterator needed", idx);
+                DLOG("dimension {} is 1, no iterator needed", idx);
                 continue;
             }
             output_iterators.push_back(iterator[idx]);
@@ -472,7 +472,7 @@ const Def* LowerMapReduce::lower_map_reduce(const App* app) {
         for (u64 i = 1; i <= n_oi; ++i)
             written_matrix = w.insert(output_submatrices[n_oi - i], output_iterators[n_oi - i], written_matrix);
 
-        w.DLOG("written_matrix {} : {}", written_matrix, written_matrix->type());
+        DLOG("written_matrix {} : {}", written_matrix, written_matrix->type());
         write_back->app(true, cont, written_matrix);
 
         // From here on the continuations take the element and memory.
@@ -483,7 +483,7 @@ const Def* LowerMapReduce::lower_map_reduce(const App* app) {
             auto for_name    = w.sym("forIn_" + std::to_string(idx));
             auto dim_nat_def = dims[idx];
             auto dim         = w.call<core::bitcast>(w.type_i32(), dim_nat_def);
-            w.DLOG("in_cont {} : {}", cont, cont->type());
+            DLOG("in_cont {} : {}", cont, cont->type());
 
             auto [body, for_call]       = counting_for(dim, acc, cont, for_name);
             auto [iter, new_acc, yield] = body->vars<3>();
@@ -501,13 +501,13 @@ const Def* LowerMapReduce::lower_map_reduce(const App* app) {
             auto input_idx_tup = subs->proj(nis_nat, i);
             auto input_matrix  = new_inputs->proj(nis_nat, i);
 
-            w.DLOG("input matrix {} is {} : {}", i, input_matrix, input_matrix->type());
+            DLOG("input matrix {} is {} : {}", i, input_matrix, input_matrix->type());
 
             auto indices         = input_idx_tup->projs(n_input[i]);
             auto input_iterators = DefVec(n_input[i], [&](u64 j) {
                 auto idx     = indices[j];
                 auto idx_lit = idx->as<Lit>()->get<u64>();
-                w.DLOG("  idx {} {} = {}", i, j, idx_lit);
+                DLOG("  idx {} {} = {}", i, j, idx_lit);
                 return iterator[idx_lit];
             });
 
@@ -515,23 +515,23 @@ const Def* LowerMapReduce::lower_map_reduce(const App* app) {
             for (auto idx : input_iterators)
                 curr_mat = w.extract(curr_mat, idx);
 
-            w.DLOG("read_entry {} : {}", curr_mat, curr_mat->type());
+            DLOG("read_entry {} : {}", curr_mat, curr_mat->type());
             auto element_i    = curr_mat;
             input_elements[i] = element_i;
         }
 
-        w.DLOG("  read elements {}", fe::Join(input_elements));
-        w.DLOG("  fun {} : {}", fun, fun->type());
-        w.DLOG("  current_mut {} : {}", current_mut, current_mut->type());
+        DLOG("  read elements {}", fe::Join(input_elements));
+        DLOG("  fun {} : {}", fun, fun->type());
+        DLOG("  current_mut {} : {}", current_mut, current_mut->type());
 
         comb->set("comb");
 
         // TODO: make non-scalar or completely scalar?
         current_mut->app(true, comb, {w.tuple({element_acc, w.tuple(input_elements)}), cont});
-        w.DLOG("final call {} : {}", call, call->type());
+        DLOG("final call {} : {}", call, call->type());
         return call;
     } catch (const std::exception& e) {
-        w.ELOG("error during lowering map_reduce: {}", e.what());
+        ELOG("error during lowering map_reduce: {}", e.what());
         return nullptr;
     }
 }
