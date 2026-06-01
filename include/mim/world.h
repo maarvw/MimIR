@@ -695,7 +695,7 @@ private:
         if (flags().reeval_breakpoints && breakpoints().contains(def->gid())) fe::breakpoint();
         for (auto op : def->ops())
             assert(&op->world() == this && "op of new Def belongs to a different World");
-        assert(!def->type() || &def->type()->world() == this && "type of new Def belongs to a different World");
+        assert((!def->type() || &def->type()->world() == this) && "type of new Def belongs to a different World");
 #endif
 
         if (is_frozen()) {

@@ -43,7 +43,7 @@ axm %tensor.set: {T: *, r: Nat, s: «r; Nat»} → [arr: «s; T», index: «i: r
 /// ### %%tensor.map_reduce
 ///
 /// * `nis`: number of inputs
-/// * `T/R/S``is/o` : respectively the type/rank/shape of the inputs/output
+/// * `T/R/S`, `is/o` : respectively the type/rank/shape of the inputs/output
 /// * `f` : function to reduce over (takes an element of type `To` and one of each type in `Tis`, and returns a `To`)
 /// * `init` : accumulator to start `f` with
 /// * `subs` : for each input, for each dimension, an index to compute the output in Einstein notation
@@ -95,8 +95,8 @@ lam %tensor.map_reduce_ds_impl {nis: Nat}
 /// * `s``1/2` : the shape of the left/right input
 /// * `a/b` : the left/right input
 ///
-/// Returns the generalised dot product of `a` and `b`.
-/// https://openxla.org/stablehlo/spec#dot_general
+/// Returns the [generalised dot product](https://openxla.org/stablehlo/spec#dot_general) of `a` and `b`.
+///
 ///
 fun dot_general_fun [R: %tensor.Ring] [x: R#T, [y: R#T, z: R#T]]@tt: R#T = return (R#add (x, (R#mul (y, z))));
 lam dot_general_pick {n: Nat} {na nb nc: Nat} (a: «na; Idx n», b: «nb; Idx n», c: «nc; Idx n») (off_1 off_2: Nat) (i: Idx n): Nat =
