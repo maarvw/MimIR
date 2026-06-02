@@ -378,6 +378,34 @@ void Emitter::emit_decl(BB& bb, const Def* def) {
             std::print(decls_, ")\n\n");
             declared_.insert(axm->sym().str());
         }
+    } else if (def->isa_imm<Rule>()) {
+        assert("false" && "TODO no vars in immutable Rule");
+    } else if (auto rule = def->isa_mut<Rule>()) {
+        // Rules should not have type annotations anywhere and just toggling annotations
+        // won't be enough to ensure that because they might be toggled on again via arr in emit_type
+        bool is_typed = typed_;
+        if (is_typed) typed_ = false;
+
+        // We also don't want any declarations (axioms) to be emitted via the rule so we
+        // save the state of the declarations before emitting the rule and restore it afterwards.
+        auto decls      = decls_.str();
+        auto decl_names = declared_;
+
+        auto meta_var_val = emit_var(bb, rule->var(), rule->dom(), true);
+        toggle_slots();
+        auto lhs_val   = emit_bb(bb, rule->lhs());
+        auto rhs_val   = emit_bb(bb, rule->rhs());
+        auto guard_val = emit_bb(bb, rule->guard());
+        toggle_slots();
+
+        if (is_typed) typed_ = true;
+
+        decls_.str(decls);
+        decls_.seekp(0, std::ios::end);
+        declared_ = decl_names;
+
+        std::print(decls_, "(rule {} {} {} {} {})\n\n", indent(1, id(rule)), indent(1, meta_var_val),
+                   indent(1, lhs_val), indent(1, rhs_val), indent(1, guard_val));
     }
 }
 
@@ -951,24 +979,9 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
         } else {
             std::print(os, "\n{}(top {})", tab, emit_type(bb, top->type()));
         }
-    } else if (def->isa_imm<Rule>()) {
-        assert("false" && "TODO no vars in immutable Rule");
-    } else if (auto rule = def->isa_mut<Rule>()) {
-        // Rules should not have type annotations anywhere and just toggling annotations
-        // won't be enough to ensure that because they might be toggled on again via arr in emit_type
-        bool is_typed = typed_;
-        if (is_typed) typed_ = false;
-        auto meta_var_val = emit_var(bb, rule->var(), rule->dom(), true);
-        toggle_slots();
-        auto lhs_val   = emit_bb(bb, rule->lhs());
-        auto rhs_val   = emit_bb(bb, rule->rhs());
-        auto guard_val = emit_bb(bb, rule->guard());
-        toggle_slots();
-        if (is_typed) typed_ = true;
-
+    } else if (auto rule = def->isa<Rule>()) {
         std::print(os, "\n{}{}", tab, id(rule, true));
-        std::print(decls_, "(rule {} {} {} {} {})\n\n", indent(1, id(rule)), indent(1, meta_var_val),
-                   indent(1, lhs_val), indent(1, rhs_val), indent(1, guard_val));
+        emit_decl(bb, rule);
     } else if (auto inj = def->isa<Inj>()) {
         std::print(os, "{}", emit_node(bb, inj, "inj", false, true));
     } else if (auto merge = def->isa<Merge>()) {
@@ -977,6 +990,8 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
         std::print(os, "{}", emit_node(bb, match, "match", true));
     } else if (auto proxy = def->isa<Proxy>()) {
         std::print(os, "{}", emit_node(bb, proxy, "proxy", true, true));
+    } else if (auto hole = def->isa<Hole>()) {
+        std::print(os, "(hole {})", emit_type(bb, hole->type()));
     } else {
         error("Unhandled Def in SExpr backend: {} : {}", def, def->type());
         fe::unreachable();
