@@ -379,7 +379,7 @@ void Emitter::emit_decl(BB& bb, const Def* def) {
             declared_.insert(axm->sym().str());
         }
     } else if (def->isa_imm<Rule>()) {
-        assert("false" && "TODO no vars in immutable Rule");
+        assert(false && "TODO no vars in immutable Rule");
     } else if (auto rule = def->isa_mut<Rule>()) {
         // Rules should not have type annotations anywhere and just toggling annotations
         // won't be enough to ensure that because they might be toggled on again via arr in emit_type
@@ -874,7 +874,7 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
     if (typed() && !def->isa<Axm>()) std::print(os, "\n{}(@ {}", tab, emit_type(bb, def->type()));
 
     if (def->isa_imm<Lam>()) {
-        assert("false" && "TODO immutable lam inline");
+        assert(false && "TODO immutable lam inline");
     } else if (auto lam = def->isa_mut<Lam>()) {
         if (is_bound(lam))
             std::print(os, "\n{}{}", tab, id(lam, true));
@@ -993,7 +993,7 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
     } else if (auto proxy = def->isa<Proxy>()) {
         std::print(os, "{}", emit_node(bb, proxy, "proxy", true, true));
     } else if (auto hole = def->isa<Hole>()) {
-        std::print(os, "(hole {})", emit_type(bb, hole->type()));
+        std::print(os, "\n{}(hole {})", tab, emit_type(bb, hole->type()));
     } else {
         error("Unhandled Def in SExpr backend: {} : {}", def, def->type());
         fe::unreachable();
