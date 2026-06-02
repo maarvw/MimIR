@@ -390,12 +390,12 @@ class ClosedMutPhase : public Phase {
 public:
     ClosedMutPhase(World& world, std::string name, bool elide_empty, bool schedule = false)
         : Phase(world, std::move(name))
-        , schedule_(schedule)
-        , elide_empty_(elide_empty) {}
+        , elide_empty_(elide_empty)
+        , schedule_(schedule) {}
     ClosedMutPhase(World& world, flags_t annex, bool elide_empty, bool schedule = false)
         : Phase(world, annex)
-        , schedule_(schedule)
-        , elide_empty_(elide_empty) {}
+        , elide_empty_(elide_empty)
+        , schedule_(schedule) {}
 
     bool elide_empty() const { return elide_empty_; }
     bool schedule() const { return schedule_; }
