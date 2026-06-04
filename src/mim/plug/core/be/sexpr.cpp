@@ -124,7 +124,7 @@ public:
     std::string emit_var(BB& bb, const Def* var, const Def* type, bool meta_var = false);
     std::string emit_head(BB& bb, Lam* lam, bool nested = false);
     std::string emit_cons_type(BB& bb, View<const Def*> ops);
-    std::string emit_type(BB& bb, const Def* type);
+    std::string emit_type(BB& bb, const Def* type, bool in_term = false);
     std::string emit_cons(std::vector<std::string> op_vals);
     std::string emit_node(BB& bb, const Def* def, std::string node_name, bool variadic = false, bool with_type = false);
     std::string emit_bb(BB& bb, const Def* def);
@@ -607,7 +607,7 @@ std::string Emitter::emit_cons_type(BB& bb, View<const Def*> ops) {
     return os.str();
 }
 
-std::string Emitter::emit_type(BB& bb, const Def* type) {
+std::string Emitter::emit_type(BB& bb, const Def* type, bool in_term /* = false*/) {
     std::ostringstream os;
     auto scope_wrap = [&](std::string val) { return slotted() ? "(scope " + val + ")" : val; };
 
@@ -625,7 +625,7 @@ std::string Emitter::emit_type(BB& bb, const Def* type) {
             }
             std::print(os, "(idx (lit {} Nat))", size);
         } else {
-            std::print(os, "(idx {})", emit_type(bb, size));
+            std::print(os, "(idx {})", emit_type(bb, size, in_term));
         }
     } else if (auto lit = type->isa<Lit>()) {
         if (lit->type()->isa<Nat>())
@@ -634,25 +634,26 @@ std::string Emitter::emit_type(BB& bb, const Def* type) {
             if (auto lit_size = Idx::size2bitwidth(size); lit_size && *lit_size == 1)
                 std::print(os, "(lit {} Bool)", lit);
             else
-                std::print(os, "(lit {} {})", lit->get(), emit_type(bb, lit->type()));
+                std::print(os, "(lit {} {})", lit->get(), emit_type(bb, lit->type(), in_term));
         else
-            std::print(os, "(lit {} {})", lit->get(), emit_type(bb, lit->type()));
+            std::print(os, "(lit {} {})", lit->get(), emit_type(bb, lit->type(), in_term));
     } else if (auto arr = type->isa<Arr>()) {
         std::string arity_val;
         if (auto top = arr->arity()->isa<Top>()) {
-            arity_val = "(top " + emit_type(bb, top->type()) + ")";
+            arity_val = "(top " + emit_type(bb, top->type(), in_term) + ")";
         } else {
-            // We disable type annotations and the creation of new bindings
-            // to prevent the array shape term from creating bindings in the lambda body
-            // which it can't access and we also don't want type annotations inside of types.
+            // We disable type annotations only if they aren't already disabled
+            // because we would otherwise get annotations inside of the array type.
+            // We also disable the use of bindings unless this type is emitted as part of a term.
+            // In that case the array shape may refer to bound variables.
             bool suppress_annotations = types_enabled();
             if (suppress_annotations) toggle_types();
-            toggle_bindings();
+            if (!in_term) toggle_bindings();
             arity_val = flatten(emit_bb(bb, arr->arity()));
             if (suppress_annotations) toggle_types();
-            toggle_bindings();
+            if (!in_term) toggle_bindings();
         }
-        std::string arr_val = arity_val + " " + emit_type(bb, arr->body());
+        std::string arr_val = arity_val + " " + emit_type(bb, arr->body(), in_term);
 
         if (auto var = arr->has_var()) {
             auto var_val = slotted() ? id(var) : "(var " + id(var) + " nil)";
@@ -664,7 +665,7 @@ std::string Emitter::emit_type(BB& bb, const Def* type) {
 
     } else if (auto pi = type->isa<Pi>()) {
         std::string pi_kind = Pi::isa_implicit(pi) ? "pi*" : "pi";
-        std::string doms    = emit_type(bb, pi->dom()) + " " + emit_type(bb, pi->codom());
+        std::string doms    = emit_type(bb, pi->dom(), in_term) + " " + emit_type(bb, pi->codom(), in_term);
 
         if (auto var = pi->has_var()) {
             auto var_val = slotted() ? id(var) : "(var " + id(var) + " nil)";
@@ -678,7 +679,7 @@ std::string Emitter::emit_type(BB& bb, const Def* type) {
         std::ostringstream op_vals;
         slotted() ? op_vals << emit_cons_type(bb, sigma->ops()) + " nil"
                   : op_vals << fe::Join(
-                        sigma->ops() | std::views::transform([&](auto op) { return emit_type(bb, op); }), " ");
+                        sigma->ops() | std::views::transform([&](auto op) { return emit_type(bb, op, in_term); }), " ");
 
         if (auto var = sigma->has_var()) {
             auto var_val = slotted() ? id(var) : "(var " + id(var) + " nil)";
@@ -692,45 +693,54 @@ std::string Emitter::emit_type(BB& bb, const Def* type) {
         if (slotted())
             std::print(os, "(tuple {})", emit_cons_type(bb, tuple->ops()));
         else
-            std::print(os, "(tuple {})",
-                       fe::Join(tuple->ops() | std::views::transform([&](auto op) { return emit_type(bb, op); }), " "));
+            std::print(
+                os, "(tuple {})",
+                fe::Join(tuple->ops() | std::views::transform([&](auto op) { return emit_type(bb, op, in_term); }),
+                         " "));
     } else if (auto app = type->isa<App>()) {
-        std::print(os, "(app {} {})", emit_type(bb, app->callee()), emit_type(bb, app->arg()));
+        std::print(os, "(app {} {})", emit_type(bb, app->callee(), in_term), emit_type(bb, app->arg(), in_term));
     } else if (auto axm = type->isa<Axm>()) {
         std::print(os, "{}", id(axm));
         emit_decl(bb, axm);
     } else if (auto var = type->isa<Var>()) {
         std::print(os, "{}", id(var, true));
     } else if (auto hole = type->isa<Hole>()) {
-        std::print(os, "(hole {})", emit_type(bb, hole->type()));
+        std::print(os, "(hole {})", emit_type(bb, hole->type(), in_term));
     } else if (auto extract = type->isa<Extract>()) {
         // Projections of rule variables are meta vars and should just be printed by name
         if (auto var = extract->tuple()->isa<Var>(); var && var->mut()->isa<Rule>())
             std::print(os, "{}", id(extract));
+        else if (in_term && bb.is_assigned(id(extract)))
+            std::print(os, "{}", id(extract));
         else
-            std::print(os, "(extract {} {})", emit_type(bb, extract->tuple()), emit_type(bb, extract->index()));
+            std::print(os, "(extract {} {})", emit_type(bb, extract->tuple(), in_term),
+                       emit_type(bb, extract->index(), in_term));
     } else if (auto mType = type->isa<Type>()) {
-        std::print(os, "(type {})", emit_type(bb, mType->level()));
+        std::print(os, "(type {})", emit_type(bb, mType->level(), in_term));
     } else if (type->isa<Univ>()) {
         std::print(os, "Univ");
     } else if (auto reform = type->isa<Reform>()) {
-        std::print(os, "(reform {})", emit_type(bb, reform->dom()));
+        std::print(os, "(reform {})", emit_type(bb, reform->dom(), in_term));
     } else if (auto join = type->isa<Join>()) {
         if (slotted())
             std::print(os, "(join {})", emit_cons_type(bb, join->ops()));
         else
-            std::print(os, "(join {})",
-                       fe::Join(join->ops() | std::views::transform([&](auto op) { return emit_type(bb, op); }), " "));
+            std::print(
+                os, "(join {})",
+                fe::Join(join->ops() | std::views::transform([&](auto op) { return emit_type(bb, op, in_term); }),
+                         " "));
     } else if (auto meet = type->isa<Meet>()) {
         if (slotted())
             std::print(os, "(meet {})", emit_cons_type(bb, meet->ops()));
         else
-            std::print(os, "(meet {})",
-                       fe::Join(meet->ops() | std::views::transform([&](auto op) { return emit_type(bb, op); }), " "));
+            std::print(
+                os, "(meet {})",
+                fe::Join(meet->ops() | std::views::transform([&](auto op) { return emit_type(bb, op, in_term); }),
+                         " "));
     } else if (auto bot = type->isa<Bot>()) {
-        std::print(os, "(bot {})", emit_type(bb, bot->type()));
+        std::print(os, "(bot {})", emit_type(bb, bot->type(), in_term));
     } else if (auto top = type->isa<Top>()) {
-        std::print(os, "(top {})", emit_type(bb, top->type()));
+        std::print(os, "(top {})", emit_type(bb, top->type(), in_term));
     } else {
         error("unsupported type '{}'", type);
         fe::unreachable();
@@ -851,7 +861,7 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
 
     ++tab;
     if (def->type()->isa<Type>() || def->type()->isa<Univ>()) {
-        std::print(os, "\n{}{}", tab, emit_type(bb, def));
+        std::print(os, "\n{}{}", tab, emit_type(bb, def, true));
         // Short circuit because we probably don't want to type
         // annotate a type (or do we?)
         --tab;
