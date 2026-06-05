@@ -177,6 +177,11 @@ const Def* normalize_map_reduce(const Def*, const Def*, const Def*) {
     return nullptr;
 }
 
+const Def* normalize_map_reduce_aff(const Def*, const Def*, const Def*) {
+    // TODO: fold size-1 loop dimensions / identity access maps.
+    return nullptr;
+}
+
 MIM_tensor_NORMALIZER_IMPL
 
 } // namespace mim::plug::tensor
