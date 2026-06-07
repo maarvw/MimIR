@@ -91,7 +91,7 @@ struct BB {
     void assign(std::string name) { assigned.insert(name); }
 
     std::array<std::deque<std::ostringstream>, 3> parts;
-    std::set<std::string> assigned;
+    std::unordered_set<std::string> assigned;
 };
 
 class Emitter : public mim::Emitter<std::string, std::string, BB, Emitter> {
@@ -115,7 +115,7 @@ public:
     void emit_epilogue(Lam*);
     void finalize();
 
-    using LamSet = std::set<Lam*>;
+    using LamSet = std::unordered_set<Lam*>;
     LamSet next_lams(Lam* lam);
     bool isa_nested_proj(const Extract* extract);
 
@@ -173,7 +173,7 @@ private:
 
     // Ensures that we don't redeclare things, for example %axm.foo
     // should only be declared once.
-    std::set<std::string> declared_;
+    std::unordered_set<std::string> declared_;
     bool is_declared(std::string name) { return declared_.contains(name); }
 
     std::ostringstream decls_;
@@ -328,8 +328,8 @@ void Emitter::finalize() {
     if (is_bound(root_lam)) emit_lam(root_lam, root_lam, rec_lams);
 }
 
-std::set<Lam*> Emitter::next_lams(Lam* lam) {
-    std::set<Lam*> next_lams;
+std::unordered_set<Lam*> Emitter::next_lams(Lam* lam) {
+    std::unordered_set<Lam*> next_lams;
     for (auto op : lam->deps()) {
         for (auto mut : op->local_muts())
             if (auto next = nest()[mut]) {
