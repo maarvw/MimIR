@@ -48,6 +48,7 @@ lam extern _default_compile (): %compile.Phase =
                 %tensor.lower_map_reduce,
             )
         ),
+        cond_phase "affine" %affine.lower_index_phase,
         cond_phase "affine" %affine.lower_for_phase,
         %compile.pass2phase (
             %compile.passes (
