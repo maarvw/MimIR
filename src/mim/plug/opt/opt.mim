@@ -83,4 +83,6 @@ lam extern _default_compile (): %compile.Phase =
                 cond_repl "gpu" %gpu.malloc2gpualloc_repl,
             )
         ),
+        // emit LLVM IR to <world>.ll iff the `ll` plugin is loaded (`-p ll`)
+        %compile.named_phase "ll.emit",
     );

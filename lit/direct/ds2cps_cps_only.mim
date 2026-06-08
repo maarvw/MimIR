@@ -1,5 +1,5 @@
-// RUN: rm -f %t.ll
-// RUN: %mim %s --output-ll %t.ll -o - | %FileCheck %s
+// RUN: rm -f ds2cps_cps_only.ll
+// RUN: %mim %s -p ll -o - | %FileCheck %s
 
 // sanity check that the pass do not interfere with normal operation
 

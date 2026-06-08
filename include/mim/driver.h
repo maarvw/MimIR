@@ -20,7 +20,9 @@ class Driver : public fe::SymPool {
 public:
     /// @name Construction
     ///@{
-    Driver();
+    Driver(std::string name);
+    Driver()
+        : Driver(std::string{}) {}
 
     Driver(const Driver&)     = delete;
     Driver(Driver&&)          = delete;

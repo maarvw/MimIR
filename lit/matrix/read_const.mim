@@ -1,5 +1,5 @@
-// RUN: rm -f %t.ll
-// RUN: %mim %s --output-ll %t.ll --output-mim - | %FileCheck %s
+// RUN: rm -f read_const.ll
+// RUN: %mim %s -p ll --output-mim - | %FileCheck %s
 
 plugin core;
 plugin matrix;

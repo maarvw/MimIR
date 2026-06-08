@@ -1,4 +1,4 @@
-// RUN: %mim %s --output-ll - | %FileCheck %s
+// RUN: rm -rf %t && mkdir -p %t && cd %t && %mim %s -p ll && %FileCheck %s < fold.ll
 
 /*
  * a hypothetical C++-to-MimIR compiler would produce the output below from this C++ program:

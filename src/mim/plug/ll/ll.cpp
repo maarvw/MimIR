@@ -4,10 +4,13 @@
 #include <string>
 
 #include <mim/config.h>
+#include <mim/phase.h>
 
 #include "mim/plugin.h"
 
 #include "mim/util/sys.h"
+
+#include "mim/plug/ll/autogen.h"
 
 namespace mim::ll {
 
@@ -40,11 +43,26 @@ int compile_and_run(World& world, std::string name, std::string args) {
     error("compilation failed");
 }
 
+namespace {
+/// Pipeline phase for `%ll.emit`.
+/// Writes the LLVM IR of the fully lowered world to `<world>.ll`.
+class Emit : public Phase {
+public:
+    Emit(World& world, flags_t annex)
+        : Phase(world, annex) {}
+
+    void start() override {
+        auto name = world().name() ? std::string(world().name().view()) : "a"s;
+        std::ofstream ofs(name + ".ll"s);
+        ll::emit(world(), ofs);
+    }
+};
+} // namespace
+
 } // namespace mim::ll
 
 using namespace mim;
 
-/// Backend entry point reached by the driver via `Driver::get_fun_ptr`.
-extern "C" MIM_EXPORT void mim_emit_ll(World& world, std::ostream& ostream) { ll::emit(world, ostream); }
+static void reg_stages(Flags2Stages& stages) { Stage::hook<plug::ll::emit, ll::Emit>(stages); }
 
-extern "C" MIM_EXPORT Plugin mim_get_plugin() { return {"ll", MIM_VERSION, nullptr, nullptr}; }
+extern "C" MIM_EXPORT Plugin mim_get_plugin() { return {"ll", MIM_VERSION, nullptr, reg_stages}; }

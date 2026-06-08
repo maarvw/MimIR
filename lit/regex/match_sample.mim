@@ -1,6 +1,6 @@
-// RUN: rm -f %t.ll ; \
-// RUN: %mim %s -o - --output-ll %t.ll --aggr-lam-spec | %FileCheck %s
-// RUN: clang %t.ll -o %t -Wno-override-module
+// RUN: rm -f match_sample.ll ; \
+// RUN: %mim %s -o - -p ll --aggr-lam-spec | %FileCheck %s
+// RUN: clang match_sample.ll -o %t -Wno-override-module
 // RUN: %t "asdf@"; test $? -eq 1
 // RUN: %t "asdf"; test $? -eq 0
 // RUN: %t "@asdf"; test $? -eq 0

@@ -44,10 +44,10 @@ std::pair<const fs::path*, bool> Driver::Imports::add(fs::path path, Sym sym, as
     return {imported_path, fresh};
 }
 
-Driver::Driver()
+Driver::Driver(std::string name)
     : version_(MIM_VERSION)
     , log_(flags_)
-    , world_(this)
+    , world_(this, sym(name))
     , imports_(*this) {
     // prepend empty path
     search_paths_.emplace_front(fs::path{});

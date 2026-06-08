@@ -217,7 +217,8 @@ TEST(RestrictedDependentTypes, join_singleton) {
 TEST(RestrictedDependentTypes, ll) {
     Driver driver;
     World& w = driver.world();
-    ast::load_plugins(w, {"compile"s, "mem"s, "core"s, "math"s, "opt"s});
+    w.set("restricted_dep_types");
+    ast::load_plugins(w, {"compile"s, "mem"s, "core"s, "math"s, "opt"s, "ll"s});
 
     auto mem_t  = w.call<mem::M>(0);
     auto i32_t  = w.type_i32();
@@ -256,7 +257,6 @@ TEST(RestrictedDependentTypes, ll) {
                   {main->var(0uz), i32_t, R, w.call<core::bitcast>(app_exp, main->var(1)), main->var(3)});
     }
 
+    // the `ll` plugin's emit phase writes `restricted_dep_types.ll` as part of `optimize`
     optimize(w);
-    driver.load("ll");
-    if (auto emit = driver.get_fun_ptr<void(World&, std::ostream&)>("ll", "mim_emit_ll")) emit(w, std::cout);
 }

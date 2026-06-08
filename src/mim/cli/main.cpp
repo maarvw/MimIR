@@ -19,7 +19,7 @@ using namespace mim;
 using namespace std::literals;
 
 int main(int argc, char** argv) {
-    enum Backends { AST, Dot, H, PY, LL, Md, Mim, Nest, SExpr, SlottedSExpr, Num_Backends };
+    enum Backends { AST, Dot, H, PY, Md, Mim, Nest, SExpr, SlottedSExpr, Num_Backends };
 
     try {
         Driver driver;
@@ -56,7 +56,6 @@ int main(int argc, char** argv) {
             | lyra::opt(output[Dot],  "file"               )      ["--output-dot"           ]("Emits the Mim program as a MimIR graph using Graphviz' DOT language.")
             | lyra::opt(output[H  ],  "file"               )      ["--output-h"             ]("Emits a header file to be used to interface with a plugin in C++.")
             | lyra::opt(output[PY ],  "file"               )      ["--output-py"             ]("Emits a Python enum to be used to interface with a plugin in Python.")
-            | lyra::opt(output[LL ],  "file"               )      ["--output-ll"            ]("Compiles the Mim program to LLVM.")
             | lyra::opt(output[Md ],  "file"               )      ["--output-md"            ]("Emits the input formatted as Markdown.")
             | lyra::opt(output[Mim],  "file"               )["-o"]["--output-mim"           ]("Emits the Mim program again.")
             | lyra::opt(output[Nest], "file"               )      ["--output-nest"          ]("Emits program nesting tree as Dot.")
@@ -188,13 +187,6 @@ int main(int argc, char** argv) {
                 if (auto s = os[Mim]) world.dump(*s);
                 if (auto s = os[Nest]) mim::Nest(world).dot(*s);
 
-                if (auto s = os[LL]) {
-                    if (!driver.is_loaded(driver.sym("ll"))) driver.load("ll");
-                    if (auto emit = driver.get_fun_ptr<void(World&, std::ostream&)>("ll", "mim_emit_ll"))
-                        emit(world, *s);
-                    else
-                        error("could not load the 'll' backend");
-                }
                 if (auto s = os[SExpr]) {
                     if (sexpr_include_types)
                         sexpr::emit_typed(world, *s);

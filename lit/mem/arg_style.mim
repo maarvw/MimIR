@@ -1,5 +1,5 @@
-// RUN: rm -f %t.ll ; \
-// RUN: %mim %s --output-ll %t.ll -o -
+// RUN: rm -f arg_style.ll ; \
+// RUN: %mim %s -p ll -o -
 
 // TODO: add filecheck
 

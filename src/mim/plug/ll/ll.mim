@@ -5,6 +5,15 @@
 /// [TOC]
 ///
 /// The LLVM backend.
-/// This plugin does not introduce any annexes; it only provides the `ll` backend that emits LLVM IR for a fully lowered MimIR program.
-/// Load it via `mim foo.mim --output-ll <file>` (or `-` for `stdout`).
+/// Loading this plugin (`mim foo.mim -p ll`) appends an emission phase to the compilation pipeline that writes the LLVM IR of the fully lowered program to `<world>.ll`.
 ///
+import compile;
+///
+/// ## Phases
+///
+/// ### %%ll.emit
+///
+/// Emits the LLVM IR of the current world to `<world>.ll`.
+/// This phase is spliced into the default pipeline (see `opt`) whenever the `ll` plugin is loaded.
+///
+axm %ll.emit: %compile.Phase;

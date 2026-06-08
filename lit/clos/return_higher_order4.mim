@@ -1,5 +1,5 @@
-// RUN: rm -f %t.ll
-// RUN: %mim -p clos %s --output-ll %t.ll -o -
+// RUN: rm -f return_higher_order4.ll
+// RUN: %mim -p clos %s -p ll -o -
 
 /*
 TODO: investigate and open error
