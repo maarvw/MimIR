@@ -26,6 +26,15 @@ axm %compile.Repl:  *;
 ///
 axm %compile.is_loaded: {n: Nat} → «n; I8» → Bool, normalize_is_loaded;
 ///
+/// ### %%compile.named_phase
+///
+/// Resolves to the `%compile.Phase` annex with the given fully-qualified name (e.g. `"tensor.lower_tensor"`).
+/// Resolution is deferred until the stage pipeline is built so that the referenced plugin's `.mim` file does
+/// not have to be imported by users of this axm; if the named annex is missing at stage build time, the phase
+/// is silently elided. Guard with `cond_phase` to keep semantics predictable when the plugin is absent.
+///
+axm %compile.named_phase: {n: Nat} → «n; I8» → %compile.Phase;
+///
 /// ## Constructors
 ///
 /// ### %%compile.phases / %%compile.passes

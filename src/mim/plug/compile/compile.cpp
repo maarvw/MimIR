@@ -26,6 +26,53 @@
 using namespace mim;
 using namespace mim::plug;
 
+namespace {
+
+/// Stage hook for `%compile.named_phase`.
+/// Reads the literal name from the driving App at stage-build time, looks up the matching annex `Def` in the
+/// current `World`, and delegates to whichever Stage that annex hooks. Elides itself (no-op) if the plugin part
+/// of the name is not loaded or the annex is missing — guard upstream with `cond_phase` to keep semantics clear.
+class NamedPhase : public Phase {
+public:
+    NamedPhase(World& w, flags_t a)
+        : Phase(w, a) {}
+
+    void apply(const App* app) final {
+        if (!app) return;
+        auto str = tuple2str(app->arg());
+        if (str.empty()) return;
+
+        auto dot = str.find('.');
+        if (dot == std::string::npos) return;
+
+        auto plugin_name = driver().sym(str.substr(0, dot));
+        if (!driver().is_loaded(plugin_name)) return;
+
+        auto target          = driver().sym("%" + str);
+        const Def* annex_def = nullptr;
+        for (auto def : world().annexes()) {
+            if (def->sym() == target) {
+                annex_def = def;
+                break;
+            }
+        }
+        if (!annex_def) return;
+
+        auto stage = Stage::create(driver().stages(), annex_def);
+        if (!stage) return;
+        inner_ = std::unique_ptr<Phase>(static_cast<Phase*>(stage.release()));
+    }
+
+    void start() final {
+        if (inner_) inner_->run();
+    }
+
+private:
+    std::unique_ptr<Phase> inner_;
+};
+
+} // namespace
+
 void reg_stages(Flags2Stages& stages) {
     // clang-format off
     assert_emplace(stages, Annex::base<compile::null_phase>(), [](World&) { return std::unique_ptr<Phase>{}; });
@@ -37,6 +84,7 @@ void reg_stages(Flags2Stages& stages) {
     Stage::hook<compile::cleanup_phase,          Cleanup             >(stages);
     Stage::hook<compile::eta_exp_phase,          EtaExpPhase         >(stages);
     Stage::hook<compile::eta_red_phase,          EtaRedPhase         >(stages);
+    Stage::hook<compile::named_phase,            NamedPhase          >(stages);
     Stage::hook<compile::pass2phase,             PassManPhase        >(stages);
     Stage::hook<compile::repl2phase,             ReplManPhase        >(stages);
     Stage::hook<compile::sym_expr_opt,           SymExprOpt          >(stages);
