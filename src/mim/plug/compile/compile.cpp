@@ -28,14 +28,15 @@ using namespace mim::plug;
 
 namespace {
 
-/// Stage hook for `%compile.named_phase`.
-/// Reads the literal name from the driving App at stage-build time, looks up the matching annex `Def` in the
-/// current `World`, and delegates to whichever Stage that annex hooks. Elides itself (no-op) if the plugin part
-/// of the name is not loaded or the annex is missing — guard upstream with `cond_phase` to keep semantics clear.
-class NamedPhase : public Phase {
+/// Stage hook for `%compile.named_phase`, `%compile.named_pass`, and `%compile.named_repl`.
+/// Reads the fully-qualified annex name (e.g. `"clos.clos_conv_phase"`) from the driving App at stage-build time,
+/// looks up the matching annex `Def` in the current `World`, and *redirects* Stage::create to that annex's own
+/// Stage. If the plugin part of the name is not loaded or the annex is missing, it elides (resolves to nothing),
+/// so the enclosing `%compile.phases`/`passes`/`repls` simply skips it.
+class Named : public Stage {
 public:
-    NamedPhase(World& w, flags_t a)
-        : Phase(w, a) {}
+    Named(World& w, flags_t a)
+        : Stage(w, a) {}
 
     void apply(const App* app) final {
         if (!app) return;
@@ -44,31 +45,21 @@ public:
 
         auto dot = str.find('.');
         if (dot == std::string::npos) return;
+        if (!driver().is_loaded(driver().sym(str.substr(0, dot)))) return;
 
-        auto plugin_name = driver().sym(str.substr(0, dot));
-        if (!driver().is_loaded(plugin_name)) return;
-
-        auto target          = driver().sym("%" + str);
-        const Def* annex_def = nullptr;
-        for (auto def : world().annexes()) {
+        auto target = driver().sym("%" + str);
+        for (auto def : world().annexes())
             if (def->sym() == target) {
-                annex_def = def;
-                break;
+                resolved_ = Stage::create(driver().stages(), def);
+                return;
             }
-        }
-        if (!annex_def) return;
-
-        auto stage = Stage::create(driver().stages(), annex_def);
-        if (!stage) return;
-        inner_ = std::unique_ptr<Phase>(static_cast<Phase*>(stage.release()));
     }
 
-    void start() final {
-        if (inner_) inner_->run();
-    }
+    bool redirects() const override { return true; }
+    std::unique_ptr<Stage> take_resolved() override { return std::move(resolved_); }
 
 private:
-    std::unique_ptr<Phase> inner_;
+    std::unique_ptr<Stage> resolved_;
 };
 
 } // namespace
@@ -84,7 +75,9 @@ void reg_stages(Flags2Stages& stages) {
     Stage::hook<compile::cleanup_phase,          Cleanup             >(stages);
     Stage::hook<compile::eta_exp_phase,          EtaExpPhase         >(stages);
     Stage::hook<compile::eta_red_phase,          EtaRedPhase         >(stages);
-    Stage::hook<compile::named_phase,            NamedPhase          >(stages);
+    Stage::hook<compile::named_phase,            Named               >(stages);
+    Stage::hook<compile::named_pass,             Named               >(stages);
+    Stage::hook<compile::named_repl,             Named               >(stages);
     Stage::hook<compile::pass2phase,             PassManPhase        >(stages);
     Stage::hook<compile::repl2phase,             ReplManPhase        >(stages);
     Stage::hook<compile::sym_expr_opt,           SymExprOpt          >(stages);

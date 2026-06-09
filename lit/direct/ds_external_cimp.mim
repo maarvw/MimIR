@@ -5,6 +5,7 @@
 // RUN: %t 4 5 ; test $? -eq 9
 
 plugin core;
+plugin direct;
 
 ccon atoi[%mem.M 0, %mem.Ptr («⊤:Nat; I8», 0), Cn [%mem.M 0, I32]];
 

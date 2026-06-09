@@ -2,6 +2,7 @@
 
 plugin core;
 plugin vec;
+plugin math;
 
 fun smpl_op{n:Nat} (A B:«n; Nat»):  «n; Nat» =
     let C = %vec.zip %core.nat.add (A, B);
