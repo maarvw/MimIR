@@ -139,19 +139,8 @@ int main(int argc, char** argv) {
 
             auto ast    = ast::AST(world);
             auto parser = ast::Parser(ast);
-            ast::Ptrs<ast::Import> imports;
 
-            for (const auto& plugin : plugins) {
-                if (auto mod = parser.plugin(plugin)) {
-                    auto import
-                        = ast.ptr<ast::Import>(Loc(), ast::Tok::Tag::K_plugin, Dbg(driver.sym(plugin)), std::move(mod));
-                    imports.emplace_back(std::move(import));
-                }
-            }
-
-            if (auto mod = parser.import(driver.sym(input), os[Md])) {
-                mod->add_implicit_imports(std::move(imports));
-
+            if (auto mod = parser.import_main(input, plugins, os[Md])) {
                 if (auto s = os[AST]) {
                     auto tab = fe::Tab::spaces();
                     mod->stream(tab, *s);
