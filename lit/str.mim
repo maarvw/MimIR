@@ -1,5 +1,5 @@
 // RUN: rm -f str.ll
-// RUN: %mim -p ll %s
+// RUN: %mim -p opt -p ll %s
 // RUN: clang %S/lib.c str.ll -o %t -Wno-override-module
 // RUN: %t | %FileCheck %s
 plugin core;

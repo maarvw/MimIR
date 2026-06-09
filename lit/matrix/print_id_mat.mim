@@ -1,5 +1,5 @@
 // RUN: rm -f print_id_mat.ll
-// RUN: %mim -p clos -p math -o - -p ll %s
+// RUN: %mim -p opt -p clos -p math -o - -p ll %s
 // RUN: clang %S/../lib.c print_id_mat.ll -o %t -Wno-override-module
 // RUN: %t 2 3 | %FileCheck %s
 

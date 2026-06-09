@@ -1,5 +1,5 @@
 // RUN: rm -f alloc.ll %t
-// RUN: %mim %s -p ll -o -
+// RUN: %mim -p opt %s -p ll -o -
 // RUN: clang alloc.ll -o %t -Wno-override-module
 
 plugin core;

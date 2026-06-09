@@ -1,5 +1,5 @@
 // RUN: rm -f simple_real.ll
-// RUN: %mim %s -p ll -o -
+// RUN: %mim -p opt %s -p ll -o -
 
 plugin mem;
 plugin math;

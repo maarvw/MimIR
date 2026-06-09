@@ -14,7 +14,7 @@
 /// (which gates a whole sub-pipeline on a plugin being loaded).
 /// This way the default pipeline does not have to import any of the optional plugins.
 ///
-import compile;
+plugin compile;
 ///
 /// ## Inlined partial pipelines
 ///

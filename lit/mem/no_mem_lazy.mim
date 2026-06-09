@@ -1,5 +1,5 @@
 // RUN: rm -f no_mem_lazy.ll
-// RUN: %mim %s -p ll -o -
+// RUN: %mim -p opt %s -p ll -o -
 
 plugin core;
 

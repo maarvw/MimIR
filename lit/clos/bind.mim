@@ -1,5 +1,5 @@
 // RUN: rm -f bind.ll
-// RUN: %mim -p clos %s -p ll
+// RUN: %mim -p opt -p clos %s -p ll
 // RUN: clang %S/../lib.c bind.ll -o %t -Wno-override-module
 // RUN: %t | %FileCheck %s
 

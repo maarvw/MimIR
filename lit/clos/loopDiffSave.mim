@@ -1,5 +1,5 @@
 // RUN: rm -f loopDiffSave.ll
-// RUN: %mim -p clos -p direct %s -p ll -o -
+// RUN: %mim -p opt -p clos -p direct %s -p ll -o -
 
 plugin core;
 

@@ -1,5 +1,5 @@
 // RUN: rm -f restructre_free_var.ll
-// RUN: %mim %s -p ll -o -
+// RUN: %mim -p opt %s -p ll -o -
 
 plugin core;
 

@@ -1,5 +1,5 @@
 // RUN: rm -f pow.ll
-// RUN: %mim %s -p ll -o -
+// RUN: %mim -p opt %s -p ll -o -
 // RUN: clang pow.ll -o %t -Wno-override-module
 // RUN: %t ; test $? -eq 81
 

@@ -1,5 +1,5 @@
 // RUN: rm -f refine.ll
-// RUN: %mim %s -p ll -o - | %FileCheck %s
+// RUN: %mim -p opt %s -p ll -o - | %FileCheck %s
 // RUN: clang refine.ll -o %t -Wno-override-module
 // RUN: %t ; test $? -eq 42
 

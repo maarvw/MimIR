@@ -1,5 +1,5 @@
 // RUN: rm -f match_mail.ll ; \
-// RUN: %mim %s -o - -p ll --aggr-lam-spec | %FileCheck %s
+// RUN: %mim -p opt %s -o - -p ll --aggr-lam-spec | %FileCheck %s
 // RUN: clang match_mail.ll -o %t -Wno-override-module
 // RUN: %t "test@cs.uni-saarland.de"; test $? -eq 0
 // RUN: %t "tester@test.de"; test $? -eq 0

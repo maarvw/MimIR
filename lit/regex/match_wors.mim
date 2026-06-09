@@ -1,5 +1,5 @@
 // RUN: rm -f match_wors.ll ; \
-// RUN: %mim %s -o - -p ll | %FileCheck %s
+// RUN: %mim -p opt %s -o - -p ll | %FileCheck %s
 // RUN: clang match_wors.ll -o %t -Wno-override-module
 // RUN: %t "g1 "; test $? -eq 1
 

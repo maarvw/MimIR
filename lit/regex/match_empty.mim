@@ -1,5 +1,5 @@
 // RUN: rm -f match_empty.ll ; \
-// RUN: %mim %s -o - -p ll | %FileCheck %s
+// RUN: %mim -p opt %s -o - -p ll | %FileCheck %s
 // RUN: clang match_empty.ll -o %t -Wno-override-module
 // RUN: %t "a"; test $? -eq 1
 // RUN: %t "a1"; test $? -eq 1

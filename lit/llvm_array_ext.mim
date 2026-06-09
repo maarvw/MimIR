@@ -1,5 +1,5 @@
 // RUN: rm -f llvm_array_ext.ll
-// RUN: %mim %s -p ll
+// RUN: %mim -p opt %s -p ll
 // RUN: clang llvm_array_ext.ll -c -o %t -Wno-override-module
 
 plugin core;

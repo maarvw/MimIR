@@ -1,5 +1,5 @@
 // RUN: rm -f loopError.ll
-// RUN: %mim -p clos %s -p ll -o -
+// RUN: %mim -p opt -p clos %s -p ll -o -
 
 plugin core;
 

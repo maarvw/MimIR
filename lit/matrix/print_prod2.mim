@@ -1,5 +1,5 @@
 // RUN: rm -f print_prod2.ll
-// RUN: %mim -p clos -o - -p ll %s
+// RUN: %mim -p opt -p clos -o - -p ll %s
 // RUN: clang %S/../lib.c print_prod2.ll -o %t -Wno-override-module
 // RUN: %t 2 3 | %FileCheck %s
 

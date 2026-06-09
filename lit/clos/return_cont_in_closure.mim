@@ -1,5 +1,5 @@
 // RUN: rm -f return_cont_in_closure.ll
-// RUN: %mim -p clos %s -p ll -o -
+// RUN: %mim -p opt -p clos %s -p ll -o -
 
 plugin core;
 plugin direct;

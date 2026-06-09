@@ -1,5 +1,5 @@
 // RUN: rm -f id_autodiff_mult_in.ll
-// RUN: %mim -p direct %s -p ll -o - | %FileCheck %s
+// RUN: %mim -p opt -p direct %s -p ll -o - | %FileCheck %s
 
 plugin core;
 plugin autodiff;

@@ -38,7 +38,6 @@ int main(int argc, char** argv) {
 #endif
         std::array<std::string, Num_Backends> output;
         int verbose      = 0;
-        int opt          = 2;
         auto inc_verbose = [&](bool) { ++verbose; };
         auto& flags      = driver.flags();
 
@@ -51,7 +50,6 @@ int main(int argc, char** argv) {
             | lyra::opt(plugins,      "plugin"             )["-p"]["--plugin"               ]("Dynamically load plugin.")
             | lyra::opt(search_paths, "path"               )["-P"]["--plugin-path"          ]("Path to search for plugins.")
             | lyra::opt(inc_verbose                        )["-V"]["--verbose"              ]("Verbose mode. Multiple -V options increase the verbosity. The maximum is 4.").cardinality(0, 5)
-            | lyra::opt(opt,          "level"              )["-O"]["--optimize"             ]("Optimization level (default: 2).")
             | lyra::opt(output[AST],  "file"               )      ["--output-ast"           ]("Directly emits AST representation of input.")
             | lyra::opt(output[Dot],  "file"               )      ["--output-dot"           ]("Emits the Mim program as a MimIR graph using Graphviz' DOT language.")
             | lyra::opt(output[H  ],  "file"               )      ["--output-h"             ]("Emits a header file to be used to interface with a plugin in C++.")
@@ -143,11 +141,6 @@ int main(int argc, char** argv) {
             auto parser = ast::Parser(ast);
             ast::Ptrs<ast::Import> imports;
 
-            if (!flags.bootstrap) {
-                plugins.insert(plugins.begin(), "compile"s);
-                if (opt >= 2) plugins.emplace_back("opt"s);
-            }
-
             for (const auto& plugin : plugins) {
                 auto mod = parser.plugin(plugin);
                 auto import
@@ -175,13 +168,7 @@ int main(int argc, char** argv) {
                 }
 
                 mod->compile(ast);
-
-                switch (opt) {
-                    case 0: break;
-                    case 1: Phase::run<Cleanup>(world); break;
-                    case 2: optimize(world); break;
-                    default: error("illegal optimization level '{}'", opt);
-                }
+                optimize(world);
 
                 if (auto s = os[Dot]) world.dot(*s, dot_all_annexes, dot_follow_types);
                 if (auto s = os[Mim]) world.dump(*s);

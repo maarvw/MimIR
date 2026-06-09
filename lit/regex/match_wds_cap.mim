@@ -1,5 +1,5 @@
 // RUN: rm -f match_wds_cap.ll ; \
-// RUN: %mim %s -o - -p ll | %FileCheck %s
+// RUN: %mim -p opt %s -o - -p ll | %FileCheck %s
 // RUN: clang match_wds_cap.ll -o %t -Wno-override-module
 // RUN: %t " g5"; test $? -eq 1
 // RUN: %t "g1 "; test $? -eq 0
