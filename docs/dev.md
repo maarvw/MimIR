@@ -22,7 +22,7 @@ A plugin consists of two parts:
 
 The shared object contains [passes](@ref mim::Pass), [normalizers](@ref mim::Axm::normalizer), and similar runtime components.
 The `.mim` file contains [axiom](@ref mim::Axm) declarations and links normalizers to their corresponding [axioms](@ref mim::Axm).
-Calling [mim::ast::Parser::plugin](@ref mim::ast::Parser::plugin) parses the `.mim` file and also loads the shared object, while the [Driver](@ref mim::Driver) keeps track of the resulting plugin state.
+Calling mim::ast::load_plugins parses the `.mim` file and also loads the shared object, while the [Driver](@ref mim::Driver) keeps track of the resulting plugin state.
 
 Now we can build actual code.
 
