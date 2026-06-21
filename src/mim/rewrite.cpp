@@ -40,17 +40,17 @@ void Rewriter::reset() {
 }
 
 const Def* Rewriter::map(const Def* old_def, Defs new_defs) {
-    auto new_tuple                   = world().tuple(new_defs);
-    return old2news_.back()[old_def] = new_tuple;
+    auto new_tuple = world().tuple(new_defs);
+    return map(old_def, new_tuple);
 }
 const Def* Rewriter::map(Defs old_defs, const Def* new_def) {
-    auto old_tuple                     = world().tuple(old_defs);
-    return old2news_.back()[old_tuple] = new_def;
+    auto old_tuple = world().tuple(old_defs);
+    return map(old_tuple, new_def);
 }
 const Def* Rewriter::map(Defs old_defs, Defs new_defs) {
-    auto old_tuple                     = world().tuple(old_defs);
-    auto new_tuple                     = world().tuple(new_defs);
-    return old2news_.back()[old_tuple] = new_tuple;
+    auto old_tuple = world().tuple(old_defs);
+    auto new_tuple = world().tuple(new_defs);
+    return map(old_tuple, new_tuple);
 }
 
 const Def* Rewriter::rewrite(const Def* old_def) {
