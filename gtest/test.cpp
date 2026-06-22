@@ -655,3 +655,23 @@ TEST(Setmaps, DotMap) {
     m1 = m1.insert(9,"neun");
     m1.save_dot();
 }
+
+TEST(Setmaps, Merge) {
+    auto m1 = setmap<int,int>();
+    auto m2 = m1.insert(0,9);
+    m1 = m1.insert(1,5);
+    m1 = m1.insert(2,5);
+    m1 = m1.insert(3,5);
+    m1 = m1.insert(4,5);
+    m1 = m1.insert(5,5);
+    m2 = m2.insert(6,9);
+    m2 = m2.insert(7,9);
+    m2 = m2.insert(8,9);
+    m2 = m2.insert(9,9);
+    m2 = m2.insert(5,9);
+    auto m3 = m1.merge(m2);
+    ASSERT_EQ(m3.size(), 9);
+    ASSERT_EQ(m3[1],5);
+    ASSERT_EQ(m3[7], 9);
+    ASSERT_EQ(m3[5], 9);
+}
