@@ -13,17 +13,16 @@ Let's jump straight into an example.
 [Driver](@ref mim::Driver) is usually the first class you create.
 It owns a few global facilities such as [Flags](@ref mim::Flags), the [Log](@ref mim::Log), and the current [World](@ref mim::World).
 In this example, the log is configured to write debug output to `std::cerr`; see also @ref clidebug.
-We then build an [AST](@ref mim::ast::AST) and a [mim::ast::Parser](@ref mim::ast::Parser) on top of that world.
 
-Next, the parser loads the [compile](@ref compile) and [core](@ref core) plugins, which in turn load the [mem](@ref mem) plugin.
+Next, we load the [core](@ref core), and [ll](@ref ll) plugins.
 A plugin consists of two parts:
 
-- a shared object (`.so`/`.dll`), and
-- a `.mim` file.
+1. a shared object (`.so`/`.dll`), and
+2. a `.mim` file.
 
 The shared object contains [passes](@ref mim::Pass), [normalizers](@ref mim::Axm::normalizer), and similar runtime components.
 The `.mim` file contains [axiom](@ref mim::Axm) declarations and links normalizers to their corresponding [axioms](@ref mim::Axm).
-Calling [mim::ast::Parser::plugin](@ref mim::ast::Parser::plugin) parses the `.mim` file and also loads the shared object, while the [Driver](@ref mim::Driver) keeps track of the resulting plugin state.
+Calling mim::ast::load_plugins parses the `.mim` file and also loads the shared object, while the [Driver](@ref mim::Driver) keeps track of the resulting plugin state.
 
 Now we can build actual code.
 
@@ -57,7 +56,7 @@ It is also important to mark `main` as [external](@ref mim::Def::externalize).
 Otherwise, MimIR may remove it as dead code.
 
 Finally, we [optimize](@ref mim::optimize) the program, emit an [LLVM assembly file](https://llvm.org/docs/LangRef.html), compile it [via](@ref mim::sys::system) `clang`, and [execute](@ref mim::sys::system) the generated binary with `./hello a b c`.
-We then [print](@ref fmt) its exit code, which should be `4`.
+We then print its exit code, which should be `4`.
 
 ## Immutables vs. Mutables {#mut}
 
@@ -91,6 +90,7 @@ That is useful when you want to partially apply a curried annex, store it, inspe
 If you want the full curried call in one go, prefer [mim::World::call](@ref mim::World::call):
 
 ```cpp
+auto app    = w.call<mem::alloc>(mem);
 auto mem_t  = w.call<mem::M>(0);
 auto argv_t = w.call<mem::Ptr0>(w.call<mem::Ptr0>(w.type_i32()));
 ```
@@ -98,14 +98,16 @@ auto argv_t = w.call<mem::Ptr0>(w.call<mem::Ptr0>(w.type_i32()));
 `w.call<Id>(...)` starts from `w.annex<Id>()` and completes the curried application for you, including implicit arguments.
 So the rule of thumb is:
 
-- use `w.annex<Id>()` when you need the annex itself or want manual staged application;
+- use `w.annex<Id>()` when you need the annex itself or want manual partial application;
 - use `w.call<Id>(...)` when you want the fully applied operation directly.
 
 ### Mutables
 
-Mutable binders are typically built in two phases.
-First, create the mutable node with a `mut_*` factory or a [stub](@ref mim::Def::stub).
-Then, obtain its variables and fill in the body via [mim::Def::set](@ref mim::Def::set):
+Mutables are built in three phases:
+
+1. Create the mutable node with a `mut_*` factory or a [stub](@ref mim::Def::stub).
+2. Optionally, obtain its variable.
+3. Fill in the body via [mim::Def::set](@ref mim::Def::set):
 
 ```cpp
 auto main = w.mut_fun({mem_t, w.type_i32(), argv_t}, {mem_t, w.type_i32()})->set("main");
@@ -116,6 +118,69 @@ main->externalize();
 
 Use [mim::Def::externalize](@ref mim::Def::externalize) for roots that must survive cleanup and whole-world rewrites.
 Top-level entry points, generated wrapper functions, and replacement nodes for former externals all follow this pattern.
+
+### Binders
+
+As a more intricate example, we build a polymorphic identity function using MimIR's C++ API.
+
+```mim
+λ {T: *} (x: T): T = x
+```
+
+This example illustrates how mutables and immutables interact.
+All binders must be created as mutables in order to access the [variable](@ref mim::Var) they introduce.
+All other nodes can remain immutable.
+
+\include "examples/poly.cpp"
+
+We first build the function type `{T: *} → T → T` (stored in `pi`).
+Since this type introduces the implicit variable `T` (stored in `pT`), the outer [`Pi`](@ref mim::Pi) must be created as a mutable.
+Before we can retrieve this variable, we must set the domain `*` (`w.type()`).
+This is also the reason why the [`Pi`](@ref mim::Pi) itself lives one universe level above, in `w.type<1>()`.
+The name `"T"` is purely for debugging and has no semantic meaning.
+
+The codomain `T → T` is built as an immutable [`Pi`](@ref mim::Pi) that refers to `pT`, and is then assigned as the codomain of `pi`.
+
+Next, we build the actual [function](@ref mim::Lam).
+The outer lambda `lamT` has type `pi` and must be mutable, since it introduces the variable `T` (stored in `lT`) of type `*` (the domain of `pi`).
+Even though `pi` also introduces a `T`, `lamT`'s variable is distinct: `lT` is **not** the same variable as `pT`.
+
+We then build the inner lambda `lamx`, which must also be mutable because it introduces the variable `x` of type `T`.
+
+@warning The type of `lamx` is `T → T`, and must refer to `lT` (not `pT`), because `lamx` is nested inside `lamT` and thus depends on `lamT`’s variable.
+
+Finally, we set the body of `lamx` to `x` (using a `tt` filter), and set the body of `lamT` to `lamx`, again using a `tt` filter.
+
+#### Partial Evaluation
+
+A `tt` filter tells MimIR to immediately β-reduce the corresponding application, giving the effect of [partial evaluation](https://en.wikipedia.org/wiki/Partial_evaluation).
+
+```cpp
+auto res = w.call(lamT, w.lit_nat(42));
+```
+
+Here we use [`World::call`](@ref mim::World::call) to automatically infer the implicit argument (`Nat`) and apply the function to `42`.
+Because both lambdas were constructed with a `tt` filter, MimIR reduces the application immediately.
+As a result, `res` does **not** point to a function or a residual call node, but directly to the reduced result, i.e. the literal `42`.
+
+#### Variables
+
+In the example above we also see that [variables](@ref mim::Var) are only created as needed.
+They are **immutable**, and their sole operand is the binder where they were introduced.
+
+```cpp
+auto var = lam->var(); // create or retrieve the variable of lam
+
+if (auto var = lam->has_var()) {
+    /* only true if lam's Var already exists */
+}
+
+if (auto [lam, var] = def->isa_binder<Lam>(); lam) {
+    /* only true if def is a mutable Lam whose Var already exists */
+}
+
+auto mut = var->mut(); // get the mutable binder where var was introduced
+```
 
 ## Matching IR
 
@@ -147,7 +212,7 @@ void foo(const Def* def) {
 
 #### Downcast to Immutables
 
-[mim::Def::isa_imm](@ref mim::Def::isa_imm) / [mim::Def::as_imm](@ref mim::Def::as_imm) only match *immutables*:
+[mim::Def::isa_imm](@ref mim::Def::isa_imm) / [mim::Def::as_imm](@ref mim::Def::as_imm) only match _immutables_:
 
 ```cpp
 void foo(const Def* def) {
@@ -167,7 +232,7 @@ void foo(const Def* def) {
 
 #### Downcast to Mutables
 
-[mim::Def::isa_mut](@ref mim::Def::isa_mut) / [mim::Def::as_mut](@ref mim::Def::as_mut) only match *mutables*.
+[mim::Def::isa_mut](@ref mim::Def::isa_mut) / [mim::Def::as_mut](@ref mim::Def::as_mut) only match _mutables_.
 They also remove the `const` qualifier, which gives you access to the non-`const` methods that only make sense for mutables:
 
 ```cpp
@@ -352,9 +417,9 @@ void foo(const Def* def) {
 
 The following table summarizes the most important axiom matches:
 
-| `dynamic_cast` <br> `static_cast`                           | Returns                                                                            | If `def` is a ...               |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------- |
-| `isa<mem::load>(def)` <br> `as<mem::load>(def)`             | [`mim::Axm::isa`](@ref mim::Axm::isa) specialized for [`mem::load`](@ref mim::plug::mem::load) and [`App`](@ref mim::App)  | final curried `%%mem.load` application      |
+| `dynamic_cast` <br> `static_cast`                           | Returns                                                                                                                     | If `def` is a ...                           |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `isa<mem::load>(def)` <br> `as<mem::load>(def)`             | [`mim::Axm::isa`](@ref mim::Axm::isa) specialized for [`mem::load`](@ref mim::plug::mem::load) and [`App`](@ref mim::App)   | final curried `%%mem.load` application      |
 | `isa<core::wrap>(def)` <br> `as<core::wrap>(def)`           | [`mim::Axm::isa`](@ref mim::Axm::isa) specialized for [`core::wrap`](@ref mim::plug::core::wrap) and [`App`](@ref mim::App) | final curried `%%core.wrap` application     |
 | `isa(core::wrap::add, def)` <br> `as(core::wrap::add, def)` | [`mim::Axm::isa`](@ref mim::Axm::isa) specialized for [`core::wrap`](@ref mim::plug::core::wrap) and [`App`](@ref mim::App) | final curried `%%core.wrap.add` application |
 
@@ -420,14 +485,10 @@ The last line assumes `mim::Flags::scalarize_threshold = 32`.
 There are several ways to iterate over a MimIR program.
 Which one is best depends on what you want to do and how much structure you need during the traversal.
 
-The simplest approach is to start from [World::externals](@ref mim::World::externals) and recursively visit [Def::deps](@ref mim::Def::deps):
+The simplest approach is to start from [World::annexes](@ref mim::World::annexes) and [World::externals](@ref mim::World::externals) and recursively visit [Def::deps](@ref mim::Def::deps).
+Oftentimes, you can use [World::roots](@ref mim::World::roots) if you don't need to distinguish between annexes and externals:
 
 ```cpp
-DefSet done;
-
-for (auto mut : world.externals())
-    visit(done, mut);
-
 void visit(DefSet& done, const Def* def) {
     if (!done.emplace(def).second) return;
 
@@ -435,6 +496,13 @@ void visit(DefSet& done, const Def* def) {
 
     for (auto op : def->deps())
         visit(done, op);
+}
+
+void visit() {
+    DefSet done;
+
+    for (auto def : world.roots())
+        visit(done, def);
 }
 ```
 

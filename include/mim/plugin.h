@@ -1,9 +1,12 @@
 #pragma once
 
-#include <memory>
-#include <string>
+#include <compare>
 
-#include <absl/container/btree_map.h>
+#include <functional>
+#include <iosfwd>
+#include <memory>
+#include <tuple>
+
 #include <absl/container/flat_hash_map.h>
 
 #include "mim/config.h"
@@ -20,24 +23,49 @@ using Normalizers = absl::flat_hash_map<flags_t, NormalizeFn>;
 
 /// Maps an an axiom of a Stage to a function that creates one.
 using Flags2Stages = absl::flat_hash_map<flags_t, std::function<std::unique_ptr<Stage>(World&)>>;
-
-using Backends = absl::btree_map<std::string, void (*)(World&, std::ostream&)>;
 ///@}
 
+struct Version {
+    int major;
+    int minor;
+    const char* suffix;
+    const char* hash;
+
+    /// Compares major/minor/suffix, ignores hash.
+    constexpr auto operator<=>(const Version& other) const noexcept {
+        auto cmp = std::tie(major, minor) <=> std::tie(other.major, other.minor);
+        if (cmp != 0) return cmp;
+
+        return std::strcmp(suffix, other.suffix) <=> 0;
+    }
+
+    /// Compares major/minor/suffix, ignores hash.
+    constexpr bool operator==(const Version& other) const noexcept {
+        return major == other.major && minor == other.minor && std::strcmp(suffix, other.suffix) == 0;
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const Version& v) {
+        return os << v.major << '.' << v.minor << v.suffix << " (" << v.hash << ")";
+    }
+};
+
 extern "C" {
+
+#define MIM_VERSION \
+    Version { MIM_VER_MAJOR, MIM_VER_MINOR, MIM_VER_SUFFIX, MIM_GIT_HASH }
+
 /// Basic info and registration function pointer to be returned from a specific plugin.
 /// Use Driver to load such a plugin.
 struct Plugin {
     using Handle = std::unique_ptr<void, void (*)(void*)>;
 
-    const char* plugin_name; ///< Name of the Plugin.
+    const char* name; ///< Name of the Plugin.
+    Version version;  ///< Version of the Plugin.
 
     /// Callback for registering the mapping from axm ids to normalizer functions in the given @p normalizers map.
     void (*register_normalizers)(Normalizers&);
     /// Callback for registering the Plugin's callbacks for Pass%es and Phase%s.
     void (*register_stages)(Flags2Stages&);
-    /// Callback for registering the mapping from backend names to emission functions in the given @p backends map.
-    void (*register_backends)(Backends&);
 };
 
 /// @name Plugin Interface
@@ -97,16 +125,19 @@ struct Annex {
     ///@{
     /// Yields the `plugin` part of the name as integer.
     /// It consists of 48 relevant bits that are returned in the highest 6 bytes of a 64-bit integer.
-    static plugin_t flags2plugin(flags_t f) { return f & Global_Plugin; }
+    static constexpr plugin_t flags2plugin(flags_t f) { return f & Global_Plugin; }
 
     /// Yields the `tag` part of the name as integer.
-    static tag_t flags2tag(flags_t f) { return tag_t((f & 0x0000'0000'0000'ff00_u64) >> 8_u64); }
+    static constexpr tag_t flags2tag(flags_t f) { return tag_t((f & 0x0000'0000'0000'ff00_u64) >> 8_u64); }
 
     /// Yields the `sub` part of the name as integer.
-    static sub_t flags2sub(flags_t f) { return sub_t(f & 0x0000'0000'0000'00ff_u64); }
+    static constexpr sub_t flags2sub(flags_t f) { return sub_t(f & 0x0000'0000'0000'00ff_u64); }
 
     /// Includes Axm::plugin() and Axm::tag() but **not** Axm::sub.
-    static flags_t flags2base(flags_t f) { return f & ~0xff_u64; }
+    static constexpr flags_t flags2base(flags_t f) { return f & ~0xff_u64; }
+
+    /// Assembles the full flags from its `plugin`, `tag`, and `sub` fields.
+    static constexpr flags_t flags(plugin_t p, tag_t t, sub_t s = 0) { return p | (flags_t(t) << 8_u64) | flags_t(s); }
     ///@}
 
     /// @name Helpers for Matching
@@ -122,3 +153,7 @@ struct Annex {
 };
 
 } // namespace mim
+
+#ifndef DOXYGEN
+template<> struct std::formatter<mim::Version> : fe::ostream_formatter {};
+#endif

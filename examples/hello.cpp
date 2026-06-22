@@ -1,5 +1,3 @@
-#include <fstream>
-
 #include <mim/driver.h>
 
 #include <mim/ast/parser.h>
@@ -13,36 +11,31 @@ using namespace mim::plug;
 
 int main(int, char**) {
     try {
-        Driver driver;
-        auto& w  = driver.world();
-        auto ast = ast::AST(w);
+        auto driver = Driver("hello");
+        auto& w     = driver.world();
         driver.log().set(&std::cerr).set(Log::Level::Debug);
-
-        auto parser = ast::Parser(ast);
-        for (auto plugin : {"compile", "core"})
-            parser.plugin(plugin);
+        ast::load_plugins(w, View<std::string>{"core", "ll"});
 
         // Cn [%mem.M 0, I32, %mem.Ptr (I32, 0) Cn [%mem.M 0, I32]]
         auto mem_t  = w.call<mem::M>(0);
         auto argv_t = w.call<mem::Ptr0>(w.call<mem::Ptr0>(w.type_i32()));
         auto main   = w.mut_fun({mem_t, w.type_i32(), argv_t}, {mem_t, w.type_i32()})->set("main");
 
-        auto [mem, argc, argv, ret] = main->vars<4>();
+        auto [mem, argc, argv] = main->var(2, 0)->projs<3>();
+        auto ret               = main->var(2, 1);
         main->app(false, ret, {mem, argc});
         main->externalize();
 
+        // the `ll` plugin's emit phase writes `hello.ll` as part of `optimize`
         optimize(w);
-        std::ofstream ofs("hello.ll");
-        driver.backend("ll")(w, ofs);
-        ofs.close(); // make sure everything is written before clang is invoked
 
         sys::system("clang hello.ll -o hello -Wno-override-module");
-        outln("exit code: {}", sys::system("./hello a b c"));
+        std::println("exit code: {}", sys::system("./hello a b c"));
     } catch (const std::exception& e) {
-        errln("{}", e.what());
+        std::println(std::cerr, "{}", e.what());
         return EXIT_FAILURE;
     } catch (...) {
-        errln("error: unknown exception");
+        std::println(std::cerr, "error: unknown exception");
         return EXIT_FAILURE;
     }
 

@@ -4,6 +4,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 
 #include <absl/container/btree_map.h>
 #include <fe/arena.h>
@@ -13,8 +14,12 @@
 
 #include "mim/util/dbg.h"
 #include "mim/util/log.h"
+#include "mim/util/span.h"
 
 namespace mim {
+
+template<class T>
+concept Enum = std::is_enum_v<std::remove_reference_t<T>>;
 
 class Driver;
 struct Flags;
@@ -34,12 +39,14 @@ public:
     ///@{
     struct State {
         State() = default;
+        State(Sym name)
+            : pod{.name = name} {}
 
         /// [Plain Old Data](https://en.cppreference.com/w/cpp/named_req/PODType)
         struct POD {
             u32 curr_gid = 0;
             u32 curr_sub = 0;
-            Loc loc;
+            Loc loc      = {};
             Sym name;
             mutable bool frozen = false;
         } pod;
@@ -63,7 +70,7 @@ public:
     ///@{
     World& operator=(World) = delete;
 
-    explicit World(Driver*);
+    explicit World(Driver*, Sym name);
     World(Driver*, const State&);
     World(World&& other) noexcept
         : World(&other.driver(), other.state()) {
@@ -139,23 +146,32 @@ public:
     ///@{
     bool is_frozen() const { return state_.pod.frozen; }
 
+    /// Use to World::freeze and automatically unfreeze at the end of scope.
+    struct Freezer {
+        Freezer(const World& world)
+            : world(world)
+            , old(world.do_freeze(true)) {}
+        ~Freezer() { world.do_freeze(old); }
+
+        const World& world;
+        bool old;
+    };
+
     /// Yields old frozen state.
-    bool freeze(bool on = true) const {
+    bool do_freeze(bool on = true) const {
         bool old          = state_.pod.frozen;
         state_.pod.frozen = on;
         return old;
     }
 
-    /// Use to World::freeze and automatically unfreeze at the end of scope.
-    struct Freezer {
-        Freezer(const World& world)
-            : world(world)
-            , old(world.freeze(true)) {}
-        ~Freezer() { world.freeze(old); }
-
-        const World& world;
-        bool old;
-    };
+    /// Use like this to freeze and automatically unfreeze:
+    /// ```
+    /// {
+    ///     auto _ = world.freeze();
+    ///     // do stuff
+    /// }
+    /// ```
+    Freezer freeze() { return Freezer(*this); }
     ///@}
 
     /// @name Debugging Features
@@ -174,35 +190,6 @@ public:
 #endif
     ///@}
 
-    /// @name Annexes
-    ///@{
-    const auto& flags2annex() const { return move_.flags2annex; }
-    auto annexes() const { return move_.flags2annex | std::views::values; }
-
-    /// Lookup annex by Axm::id.
-    template<class Id>
-    const Def* annex(Id id) {
-        auto flags = static_cast<flags_t>(id);
-        if (auto i = move_.flags2annex.find(flags); i != move_.flags2annex.end()) return i->second;
-        error("Axm with ID '{x}' not found; demangled plugin name is '{}'", flags, Annex::demangle(driver(), flags));
-    }
-
-    /// Get Axm from a plugin.
-    /// Can be used to get an Axm without sub-tags.
-    /// E.g. use `w.annex<mem::M>();` to get the `%mem.M` Axm.
-    template<annex_without_subs id>
-    const Def* annex() {
-        return annex(Annex::base<id>());
-    }
-
-    const Def* register_annex(flags_t f, const Def*);
-    const Def* register_annex(plugin_t p, tag_t t, sub_t s, const Def* def) {
-        return register_annex(p | (flags_t(t) << 8_u64) | flags_t(s), def);
-    }
-    ///@}
-
-    /// @name Externals
-    ///@{
     class Externals {
     public:
         ///@name Get syms/muts
@@ -214,6 +201,7 @@ public:
         /// @note The iteration will see all old externals, of course.
         Vector<Def*> mutate() const { return {muts().begin(), muts().end()}; }
         Def* operator[](Sym name) const { return mim::lookup(sym2mut_, name); } ///< Lookup by @p name.
+        size_t size() const { return sym2mut_.size(); }
         ///@}
 
         ///@name externalize/internalize
@@ -237,8 +225,100 @@ public:
         fe::SymMap<Def*> sym2mut_;
     };
 
+    class Annexes {
+    public:
+        struct Entry {
+            Sym sym;
+            const Def* def;
+        };
+
+        Annexes(Driver* driver)
+            : driver_(driver) {}
+
+        /// @name Getters
+        ///@{
+        Driver& driver() { return *driver_; }
+        /// An annex's flags map to its full name and its Def.
+        const auto& flags2entry() const { return flags2entry_; }
+        auto entries() const { return flags2entry_ | std::views::values; }
+        auto defs() const {
+            return entries() | std::views::transform([](Entry e) { return e.def; });
+        }
+        const auto& sym2flags() const { return sym2flags_; }
+        size_t size() const { return flags2entry_.size(); }
+        ///@}
+
+        /// @name attach
+        ///@{
+        const Def* attach(flags_t, Sym, const Def*);
+        const Def* attach(plugin_t p, tag_t t, sub_t s, Sym sym, const Def* def) {
+            return attach(Annex::flags(p, t, s), sym, def);
+        }
+        ///@}
+
+        /// @name Iterators
+        ///@{
+        auto begin() const { return flags2entry_.cbegin(); }
+        auto end() const { return flags2entry_.cend(); }
+        ///@}
+
+        friend void swap(Annexes& a1, Annexes& a2) noexcept {
+            using std::swap;
+            // clang-format off
+            swap(a1.driver_,      a2.driver_);
+            swap(a1.flags2entry_, a2.flags2entry_);
+            swap(a1.sym2flags_,   a2.sym2flags_);
+            // clang-format on
+        }
+
+    private:
+        Driver* driver_;
+        absl::btree_map<flags_t, Entry> flags2entry_; ///< Authoritative annex table; iterated in flags order.
+        fe::SymMap<flags_t> sym2flags_;               ///< Reverse index: an annex's full name to its flags.
+    };
+
+    /// @name Externals & Annexes
+    ///@{
     const Externals& externals() const { return move_.externals; }
     Externals& externals() { return move_.externals; }
+
+    Annexes& annexes() { return move_.annexes; }
+    const Annexes& annexes() const { return move_.annexes; }
+
+    /// annexes() + externals().muts() in this order.
+    auto roots() const {
+        auto res = Vector<const Def*>(); // TODO use std::views::concat - once we have C++26
+        res.reserve(annexes().size() + externals().size());
+        res.append_range(annexes().defs());
+        res.append_range(externals().muts());
+        return res;
+    }
+
+    /// Lookup annex by Sym.
+    const Def* annex(Sym sym) {
+        if (auto flags = lookup(annexes().sym2flags(), sym)) return annex(*flags);
+        return nullptr;
+    }
+
+    /// Lookup annex by flags.
+    const Def* annex(flags_t flags) {
+        if (auto e = lookup(annexes().flags2entry(), flags)) return e->def;
+        ELOG("Axm with ID `{}` not found; demangled plugin name is `{}`", flags, Annex::demangle(driver(), flags));
+        return nullptr;
+    }
+    /// Lookup annex by Axm::id
+    template<class Id>
+    const Def* annex(Id id) {
+        return annex(static_cast<flags_t>(id));
+    }
+
+    /// Get Axm from a plugin.
+    /// Can be used to get an Axm without sub-tags.
+    /// E.g. use `w.annex<mem::M>();` to get the `%mem.M` Axm.
+    template<annex_without_subs id>
+    const Def* annex() {
+        return annex(Annex::base<id>());
+    }
     ///@}
 
     /// @name Univ, Type, Var, Proxy, Hole
@@ -350,13 +430,10 @@ public:
 
     /// @name Rewrite Rules
     ///@{
-    const Reform* reform(const Def* meta_type) { return unify<Reform>(Reform::infer(meta_type), meta_type); }
+    const Reform* reform(const Def* dom) { return unify<Reform>(Reform::infer(dom), dom); }
     Rule* mut_rule(const Reform* type) { return insert<Rule>(type); }
     const Rule* rule(const Reform* type, const Def* lhs, const Def* rhs, const Def* guard) {
-        return mut_rule(type)->set(lhs, rhs, guard);
-    }
-    const Rule* rule(const Def* meta_type, const Def* lhs, const Def* rhs, const Def* guard) {
-        return rule(reform(meta_type), lhs, rhs, guard);
+        return unify<Rule>(type, lhs, rhs, guard);
     }
     ///@}
 
@@ -385,23 +462,13 @@ public:
     const Sigma* sigma() { return data_.sigma; } ///< The unit type within Type 0.
     ///@}
 
-    /// @name Arr
+    /// @name Arr & Pack
     ///@{
     // clang-format off
-    const Def* unit(bool term) { return term ? (const Def*)tuple() : sigma(); }
-
-    Seq* mut_seq(bool term, const Def* type) { return term ? (Seq*)insert<Pack>(type) : insert<Arr>(type); }
-    const Def* seq(bool term, const Def* arity, const Def* body);
-    const Def* seq(bool term, Defs shape, const Def* body);
-    const Def* seq(bool term, u64 n, const Def* body) { return seq(term, lit_nat(n), body); }
-    const Def* seq(bool term, View<u64> shape, const Def* body) { return seq(term, DefVec(shape.size(), [&](size_t i) { return lit_nat(shape[i]); }), body); }
-    const Def* seq_unsafe(bool term, const Def* body) { return seq(term, top_nat(), body); }
-
     template<level_t level = 0>
     Arr* mut_arr() {
         return mut_arr(type<level>());
     }
-
     Arr * mut_arr (const Def* type) { return mut_seq(false, type)->as<Arr >(); }
     Pack* mut_pack(const Def* type) { return mut_seq(true , type)->as<Pack>(); }
     const Def* arr (const Def* arity, const Def* body) { return seq(false, arity, body); }
@@ -418,6 +485,21 @@ public:
     const Def* prod(bool term, Defs ops) { return term ? tuple(ops) : sigma(ops); }
     const Def* prod(bool term) { return term ? (const Def*)tuple() : (const Def*)sigma(); }
     // clang-format on
+    ///@}
+
+    /// @name Seq
+    /// These either build a Pack or an Arr depending on the first argument.
+    /// Oftentimes, the logic for Pack%s and Arr%ays can be quite similar; these methods help factoring such code.
+    ///@{
+    const Def* unit(bool is_pack) { return is_pack ? (const Def*)tuple() : sigma(); }
+    Seq* mut_seq(bool is_pack, const Def* type) { return is_pack ? (Seq*)insert<Pack>(type) : insert<Arr>(type); }
+    const Def* seq(bool is_pack, const Def* arity, const Def* body);
+    const Def* seq(bool is_pack, Defs shape, const Def* body);
+    const Def* seq(bool is_pack, u64 n, const Def* body) { return seq(is_pack, lit_nat(n), body); }
+    const Def* seq(bool is_pack, View<u64> shape, const Def* body) {
+        return seq(is_pack, DefVec(shape.size(), [&](size_t i) { return lit_nat(shape[i]); }), body);
+    }
+    const Def* seq_unsafe(bool is_pack, const Def* body) { return seq(is_pack, top_nat(), body); }
     ///@}
 
     /// @name Tuple
@@ -549,10 +631,9 @@ public:
     // clang-format on
     ///@}
 
-    /// @name Cope with implicit Arguments
-    ///@{
-
+    /// @name implicit_app - Cope with implicit Arguments
     /// Places Hole%s as demanded by Pi::is_implicit() and then apps @p arg.
+    ///@{
     template<bool Normalize = true>
     const Def* implicit_app(const Def* callee, const Def* arg);
     template<bool Normalize = true>
@@ -567,14 +648,42 @@ public:
     const Def* implicit_app(const Def* callee, E arg)
         requires std::is_enum_v<E> && std::is_same_v<std::underlying_type_t<E>, nat_t>
     {
-        return implicit_app<Normalize>(callee, lit_nat((nat_t)arg));
+        return implicit_app<Normalize>(callee, lit_nat(std::to_underlying(arg)));
+    }
+    ///@}
+
+    /// @name call
+    /// Complete curried call of @p callee obeying implicits.
+    ///@{
+    template<bool Normalize = true, class T, class... Args>
+    const Def* call(const Def* callee, T&& arg, Args&&... args) {
+        return call<Normalize>(implicit_app<Normalize>(callee, std::forward<T>(arg)), std::forward<Args>(args)...);
     }
 
-    /// Complete curried call of annexes obeying implicits.
-    // clang-format off
-    template<class Id, bool Normalize = true, class... Args> const Def* call(Id id, Args&&... args) { return call_<Normalize>(annex(id),   std::forward<Args>(args)...); }
-    template<class Id, bool Normalize = true, class... Args> const Def* call(       Args&&... args) { return call_<Normalize>(annex<Id>(), std::forward<Args>(args)...); }
-    // clang-format on
+    /// Base case.
+    template<bool Normalize = true, class T>
+    const Def* call(const Def* callee, T&& arg) {
+        return implicit_app<Normalize>(callee, std::forward<T>(arg));
+    }
+
+    /// Annex overload with enum instance as first argument.
+    template<Enum Id, bool Normalize = true, class... Args>
+    const Def* call(Id id, Args&&... args) {
+        return call<Normalize>(annex(id), std::forward<Args>(args)...);
+    }
+
+    /// Annex overload with enum tempalte argument @p Id for annexes w/o subtag.
+    template<class Id, bool Normalize = true, class... Args>
+    requires std::is_enum_v<Id>
+    const Def* call(Args&&... args) {
+        return call<Normalize>(annex<Id>(), std::forward<Args>(args)...);
+    }
+
+    /// Annex overload with `flags_t` as first argument.
+    template<bool Normalize = true, class... Args>
+    const Def* call(flags_t id, Args&&... args) {
+        return call<Normalize>(annex(id), std::forward<Args>(args)...);
+    }
     ///@}
 
     /// @name Vars & Muts
@@ -594,13 +703,16 @@ public:
     /// @name for_each
     /// Visits all closed mutables in this World.
     ///@{
-    void for_each(bool elide_empty, std::function<void(Def*)>);
+    void for_each(bool elide_empty, std::function<void(Def*)>, bool schedule = false);
 
     template<class M>
-    void for_each(bool elide_empty, std::function<void(M*)> f) {
-        for_each(elide_empty, [f](Def* m) {
-            if (auto mut = m->template isa<M>()) f(mut);
-        });
+    void for_each(bool elide_empty, std::function<void(M*)> f, bool schedule = false) {
+        for_each(
+            elide_empty,
+            [f](Def* m) {
+                if (auto mut = m->template isa<M>()) f(mut);
+            },
+            schedule);
     }
     ///@}
 
@@ -628,19 +740,6 @@ public:
     ///@}
 
 private:
-    /// @name call_
-    /// Helpers to unwind World::call with variadic templates.
-    ///@{
-    template<bool Normalize = true, class T, class... Args>
-    const Def* call_(const Def* callee, T arg, Args&&... args) {
-        return call_<Normalize>(implicit_app(callee, arg), std::forward<Args>(args)...);
-    }
-    template<bool Normalize = true, class T>
-    const Def* call_(const Def* callee, T arg) {
-        return implicit_app<Normalize>(callee, arg);
-    }
-    ///@}
-
     /// @name Put into Sea of Nodes
     ///@{
     template<class T, class... Args>
@@ -658,8 +757,11 @@ private:
         if (auto loc = get_loc()) def->set(loc);
 
 #ifdef MIM_ENABLE_CHECKS
-        if (flags().trace_gids) outln("{}: {} - {}", def->node_name(), def->gid(), def->flags());
+        if (flags().trace_gids) std::println("{}: {} - {}", def->node_name(), def->gid(), def->flags());
         if (flags().reeval_breakpoints && breakpoints().contains(def->gid())) fe::breakpoint();
+        for (auto op : def->ops())
+            assert(&op->world() == this && "op of new Def belongs to a different World");
+        assert((!def->type() || &def->type()->world() == this) && "type of new Def belongs to a different World");
 #endif
 
         if (is_frozen()) {
@@ -699,7 +801,7 @@ private:
         if (auto loc = get_loc()) def->set(loc);
 
 #ifdef MIM_ENABLE_CHECKS
-        if (flags().trace_gids) outln("{}: {} - {}", def->node_name(), def->gid(), def->flags());
+        if (flags().trace_gids) std::println("{}: {} - {}", def->node_name(), def->gid(), def->flags());
         if (breakpoints().contains(def->gid())) fe::breakpoint();
 #endif
         assert_emplace(move_.defs, def);
@@ -761,12 +863,15 @@ private:
     };
 
     struct Move {
+        Move(Driver* driver)
+            : annexes(driver) {}
+
         struct {
             fe::Arena defs, substs;
         } arena;
 
         Externals externals;
-        absl::btree_map<flags_t, const Def*> flags2annex;
+        Annexes annexes;
         absl::flat_hash_set<const Def*, SeaHash, SeaEq> defs;
         Sets<Def> muts;
         Sets<const Var> vars;
@@ -781,8 +886,8 @@ private:
             swap(m1.substs,       m2.substs);
             swap(m1.vars,         m2.vars);
             swap(m1.muts,         m2.muts);
-            swap(m1.flags2annex,  m2.flags2annex);
             swap(m1.externals,    m2.externals);
+            swap(m1.annexes,      m2.annexes);
             // clang-format on
         }
     } move_;

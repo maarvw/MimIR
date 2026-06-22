@@ -27,7 +27,7 @@ TEST(RestrictedDependentTypes, join_singleton) {
     auto test_on_world = [](auto test) {
         Driver driver;
         World& w = driver.world();
-        ast::load_plugins(w, {"compile"s, "mem"s, "core"s, "math"s});
+        ast::load_plugins(w, {"mem"s, "core"s, "math"s});
 
         auto i32_t = w.type_i32();
         auto i64_t = w.type_i64();
@@ -135,11 +135,11 @@ TEST(RestrictedDependentTypes, join_singleton) {
                 auto exp_sig = w.mut_sigma(4);
                 exp_sig->set(0, w.type());
                 exp_sig->set(1, w.type());
-                exp_sig->set(2, w.app(Exp, {w.inj(DT, exp_sig->var(0_s)), w.inj(RW, exp_sig->var(1_s))}));
-                exp_sig->set(3, w.cn(exp_sig->var(0_s)));
+                exp_sig->set(2, w.app(Exp, {w.inj(DT, exp_sig->var(0uz)), w.inj(RW, exp_sig->var(1uz))}));
+                exp_sig->set(3, w.cn(exp_sig->var(0uz)));
 
                 auto exp_lam = w.mut_con(exp_sig);
-                exp_lam->app(false, exp_lam->var(3), w.call<core::bitcast>(exp_lam->var(0_s), exp_lam->var(2_s)));
+                exp_lam->app(false, exp_lam->var(3), w.call<core::bitcast>(exp_lam->var(0uz), exp_lam->var(2uz)));
                 test(w, R, W, Exp, exp_lam, DT, RW, i32_t, i64_t);
             });
         }
@@ -203,11 +203,11 @@ TEST(RestrictedDependentTypes, join_singleton) {
 
                 auto exp_sig = w.mut_sigma(3);
                 exp_sig->set(0, w.type());
-                exp_sig->set(1, w.app(Exp, {w.inj(DT, exp_sig->var(0_s)), w.inj(RW, R)}));
-                exp_sig->set(2, w.cn(exp_sig->var(0_s)));
+                exp_sig->set(1, w.app(Exp, {w.inj(DT, exp_sig->var(0uz)), w.inj(RW, R)}));
+                exp_sig->set(2, w.cn(exp_sig->var(0uz)));
 
                 auto exp_lam = w.mut_con(exp_sig);
-                exp_lam->app(false, exp_lam->var(2_s), w.call<core::bitcast>(exp_lam->var(0_s), exp_lam->var(1_s)));
+                exp_lam->app(false, exp_lam->var(2uz), w.call<core::bitcast>(exp_lam->var(0uz), exp_lam->var(1uz)));
                 test(w, R, W, Exp, exp_lam, DT, RW, i32_t, i64_t);
             });
         }
@@ -217,7 +217,8 @@ TEST(RestrictedDependentTypes, join_singleton) {
 TEST(RestrictedDependentTypes, ll) {
     Driver driver;
     World& w = driver.world();
-    ast::load_plugins(w, {"compile"s, "mem"s, "core"s, "math"s, "opt"s});
+    w.set("restricted_dep_types");
+    ast::load_plugins(w, {"mem"s, "core"s, "math"s, "ll"s});
 
     auto mem_t  = w.call<mem::M>(0);
     auto i32_t  = w.type_i32();
@@ -245,17 +246,17 @@ TEST(RestrictedDependentTypes, ll) {
         exp_sig->set(0, mem_t);
         exp_sig->set(1, w.type());
         exp_sig->set(2, w.type());
-        exp_sig->set(3, w.app(Exp, {w.inj(DT, exp_sig->var(1_s)), w.inj(RW, exp_sig->var(2_s))}));
+        exp_sig->set(3, w.app(Exp, {w.inj(DT, exp_sig->var(1uz)), w.inj(RW, exp_sig->var(2uz))}));
         exp_sig->set(4, w.cn({mem_t, i32_t}));
 
         auto exp_lam = w.mut_con(exp_sig);
-        auto bc      = w.call<core::bitcast>(i32_t, exp_lam->var(3_s));
-        exp_lam->app(false, exp_lam->var(4), {exp_lam->var(0_s), bc});
+        auto bc      = w.call<core::bitcast>(i32_t, exp_lam->var(3uz));
+        exp_lam->app(false, exp_lam->var(4), {exp_lam->var(0uz), bc});
 
         main->app(false, exp_lam,
-                  {main->var(0_s), i32_t, R, w.call<core::bitcast>(app_exp, main->var(1)), main->var(3)});
+                  {main->var(0uz), i32_t, R, w.call<core::bitcast>(app_exp, main->var(1)), main->var(3)});
     }
 
+    // the `ll` plugin's emit phase writes `restricted_dep_types.ll` as part of `optimize`
     optimize(w);
-    driver.backend("ll")(w, std::cout);
 }

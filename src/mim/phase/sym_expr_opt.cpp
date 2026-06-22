@@ -4,29 +4,10 @@
 
 namespace mim {
 
-Def* SymExprOpt::Analysis::rewrite_mut(Def* mut) {
-    map(mut, mut);
-
-    if (auto var = mut->has_var()) {
-        map(var, var);
-
-        if (mut->isa<Lam>())
-            for (auto var : mut->tvars()) {
-                map(var, var);
-                lattice_[var] = var;
-            }
-    }
-
-    for (auto d : mut->deps())
-        rewrite(d);
-
-    return mut;
-}
-
 const Def* SymExprOpt::Analysis::propagate(const Def* var, const Def* def) {
     auto [i, ins] = lattice_.emplace(var, def);
     if (ins) {
-        todo_ = true;
+        invalidate();
         DLOG("propagate: {} → {}", var, def);
         return def;
     }
@@ -34,7 +15,7 @@ const Def* SymExprOpt::Analysis::propagate(const Def* var, const Def* def) {
     auto cur = i->second;
     if (!cur || def->isa<Bot>() || cur == def || cur == var || cur->isa<Proxy>()) return cur;
 
-    todo_ = true;
+    invalidate();
     DLOG("cannot propagate {}, trying GVN", var);
     if (cur->isa<Bot>()) return i->second = def;
     return i->second = nullptr; // we reached top for propagate; nullptr marks this to bundle for GVN
@@ -110,12 +91,12 @@ const Def* SymExprOpt::Analysis::rewrite_imm_App(const App* app) {
 
                 auto new_num = vars.size();
                 if (new_num == 1) {
-                    todo_        = true;
+                    invalidate();
                     auto vi      = lam->tvar(i);
                     lattice_[vi] = abstr_vars[i] = vi;
                     DLOG("single: {}", vi);
                 } else if (new_num != num) {
-                    todo_          = true;
+                    invalidate();
                     auto new_proxy = world().proxy(ai->type(), vars, 0, 0);
                     DLOG("split: {}", new_proxy);
 
@@ -129,16 +110,8 @@ const Def* SymExprOpt::Analysis::rewrite_imm_App(const App* app) {
             }
         }
 
-        // set new abstract var
-        auto abstr_var = world().tuple(abstr_vars);
-        map(lam->var(), abstr_var);
-        lattice_[lam->var()] = abstr_var;
-
-        if (!lookup(lam))
-            for (auto d : lam->deps())
-                rewrite(d);
-
-        return world().app(lam, abstr_args);
+        set(lam->var(), world().tuple(abstr_vars)); // set new abstract var
+        return world().app(rewrite_deps(lam), abstr_args);
     }
 
     return mim::Analysis::rewrite_imm_App(app);
@@ -153,7 +126,7 @@ static bool keep(const Def* old_var, const Def* abstr) {
 const Def* SymExprOpt::rewrite_imm_App(const App* old_app) {
     if (auto old_lam = old_app->callee()->isa_mut<Lam>()) {
         if (auto l = lattice(old_lam->var()); l && l != old_lam->var()) {
-            todo_ = true;
+            invalidate();
 
             size_t num_old = old_lam->num_tvars();
             Lam* new_lam;
@@ -189,7 +162,9 @@ const Def* SymExprOpt::rewrite_imm_App(const App* old_app) {
                 }
 
                 map(old_lam->var(), new_vars);
-                new_lam->set(rewrite(old_lam->filter()), rewrite(old_lam->body()));
+                auto new_filter = rewrite(old_lam->filter());
+                auto new_body   = rewrite(old_lam->body());
+                new_lam->set(new_filter, new_body);
             }
 
             // build new app
@@ -205,7 +180,7 @@ const Def* SymExprOpt::rewrite_imm_App(const App* old_app) {
         }
     }
 
-    return Rewriter::rewrite_imm_App(old_app);
+    return RWPhase::rewrite_imm_App(old_app);
 }
 
 } // namespace mim

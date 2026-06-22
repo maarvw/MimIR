@@ -1,10 +1,12 @@
 #include "mim/world.h"
 
+#include <ranges>
+
 #include "mim/check.h"
 #include "mim/def.h"
 #include "mim/driver.h"
 #include "mim/rewrite.h"
-#include "mim/rule.h"
+#include "mim/schedule.h"
 #include "mim/tuple.h"
 
 #include "mim/util/util.h"
@@ -38,6 +40,18 @@ void World::Externals::internalize(Def* def) {
     assert_unused(num == 1);
 }
 
+const Def* World::Annexes::attach(flags_t flags, Sym sym, const Def* def) {
+    driver().TLOG("register: 0x{:x} -> {} ({})", flags, def, sym);
+    auto plugin = Annex::demangle(driver(), flags);
+    if (driver().is_loaded(plugin)) {
+        assert_emplace(flags2entry_, flags, Annexes::Entry{sym, def});
+        assert_emplace(sym2flags_, sym, flags);
+        def->annex_ = true;
+        return def;
+    }
+    return nullptr;
+}
+
 /*
  * constructor & destructor
  */
@@ -49,7 +63,8 @@ bool World::Lock::guard_ = false;
 World::World(Driver* driver, const State& state)
     : driver_(driver)
     , zonker_(*this)
-    , state_(state) {
+    , state_(state)
+    , move_(driver) {
     data_.univ        = insert<Univ>(*this);
     data_.lit_univ_0  = lit_univ(0);
     data_.lit_univ_1  = lit_univ(1);
@@ -71,8 +86,8 @@ World::World(Driver* driver, const State& state)
     data_.lit_nat_max = lit_nat(nat_t(-1));
 }
 
-World::World(Driver* driver)
-    : World(driver, State()) {}
+World::World(Driver* driver, Sym name)
+    : World(driver, State(name)) {}
 
 World::~World() {
     for (auto def : move_.defs)
@@ -89,17 +104,6 @@ Flags& World::flags() { return driver().flags(); }
 Sym World::sym(const char* s) { return driver().sym(s); }
 Sym World::sym(std::string_view s) { return driver().sym(s); }
 Sym World::sym(const std::string& s) { return driver().sym(s); }
-
-const Def* World::register_annex(flags_t f, const Def* def) {
-    TLOG("register: 0x{x} -> {}", f, def);
-    auto plugin = Annex::demangle(driver(), f);
-    if (driver().is_loaded(plugin)) {
-        assert_emplace(move_.flags2annex, f, def);
-        def->annex_ = true;
-        return def;
-    }
-    return nullptr;
-}
 
 /*
  * factory methods
@@ -348,10 +352,20 @@ const Def* World::tuple(Sym sym) {
     return tuple(defs);
 }
 
+bool isa_indicies(const Def* def) {
+    if (Idx::isa(def)) return true;
+    if (auto sigma = def->isa<Sigma>()) return std::ranges::all_of(sigma->ops(), [](auto op) { return Idx::isa(op); });
+    if (auto arr = def->isa<Arr>()) return Idx::isa(arr->body());
+    return false;
+}
+
 const Def* World::extract(const Def* d, const Def* index) {
     if (!d || !index) return nullptr; // can happen if frozen
     d     = d->zonk();
     index = index->zonk();
+
+    if (!isa_indicies(index->type()))
+        error(index->loc(), "index '{}' is not of Idx type but of type '{}'", index, index->type());
 
     if (auto tuple = index->isa<Tuple>()) {
         for (auto op : tuple->ops())
@@ -381,10 +395,16 @@ const Def* World::extract(const Def* d, const Def* index) {
         }
     }
 
-    if (auto pack = d->isa_imm<Pack>()) return pack->body();
-
     if (size && !Checker::alpha<Checker::Check>(type->arity(), size))
         error(index->loc(), "index '{}' does not fit within arity '{}'", index, type->arity());
+    // TODO if we have indices we need to check as well that this is compatible with `d`
+
+    if (auto pack = d->isa<Pack>()) {
+        if (pack->has_var())
+            return pack->reduce(index);
+        else
+            return pack->body();
+    }
 
     // extract(insert(x, index, val), index) -> val
     if (auto insert = d->isa<Insert>()) {
@@ -491,13 +511,12 @@ const Def* World::seq(bool term, const Def* arity, const Def* body) {
     }
 
     // «(a, b, c); body» -> «a; «(b, c); body»»
-    if (auto tuple = arity->isa<Tuple>())
-        return seq(term, tuple->ops().front(), seq(term, tuple->ops().subspan(1), body));
-
-    // «‹n; x›; body» -> «x; «<n-1, x>; body»»
-    if (auto p = arity->isa<Pack>()) {
-        if (auto s = Lit::isa(p->arity())) return seq(term, p->body(), seq(term, pack(*s - 1, p->body()), body));
-    }
+    // e.g. when var, but still has array type
+    if (auto arr_arity = arity->type()->isa<Seq>())
+        if (auto lit_arity_arity = Lit::isa(arr_arity->arity())) {
+            DefVec inner_arity(*lit_arity_arity - 1, [&](u64 i) { return arity->proj(*lit_arity_arity, i + 1); });
+            return seq(term, arity->proj(*lit_arity_arity, 0), seq(term, tuple(inner_arity), body));
+        }
 
     if (term) {
         auto type = arr(arity, body->type());
@@ -513,6 +532,7 @@ const Def* World::seq(bool term, Defs shape, const Def* body) {
 }
 
 const Lit* World::lit(const Def* type, u64 val) {
+    if (!type) return nullptr;
     type = type->zonk();
 
     if (auto size = Idx::isa(type)) {
@@ -676,18 +696,33 @@ Defs World::reduce(const Var* var, const Def* arg) {
     return reduct->defs();
 }
 
-void World::for_each(bool elide_empty, std::function<void(Def*)> f) {
+void World::for_each(bool elide_empty, std::function<void(Def*)> f, bool schedule /* = false */) {
     unique_queue<MutSet> queue;
     for (auto mut : externals().muts())
         queue.push(mut);
 
+    std::vector<Def*> muts;
     while (!queue.empty()) {
         auto mut = queue.pop();
-        if (mut && mut->is_closed() && (!elide_empty || mut->is_set())) f(mut);
+        if (mut && mut->is_closed() && (!elide_empty || mut->is_set())) muts.push_back(mut);
 
         for (auto op : mut->deps())
             for (auto mut : op->local_muts())
                 queue.push(mut);
+    }
+
+    // Schedules the mutables in post-order to ensure that they
+    // are emitted in the correct order of dependencies.
+    if (schedule) {
+        const auto mut_nest = Nest(muts);
+        auto schedule       = Scheduler::schedule(mut_nest) | std::views::reverse | std::views::filter([&](Def* mut) {
+                            return mut->is_closed() && (!elide_empty || mut->is_set());
+                        });
+        for (auto* mut : schedule)
+            f(mut);
+    } else {
+        for (auto* mut : muts)
+            f(mut);
     }
 }
 
@@ -709,7 +744,7 @@ const Def* World::gid2def(u32 gid) {
 World& World::verify() {
     for (auto mut : externals().muts())
         assert(mut->is_closed() && mut->is_set());
-    for (auto anx : annexes())
+    for (auto anx : annexes().defs())
         assert(anx->is_closed());
     return *this;
 }
