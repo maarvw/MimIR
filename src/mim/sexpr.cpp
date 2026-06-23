@@ -436,7 +436,6 @@ void Emitter::emit_lam(Lam* parent, Lam* curr, LamSet& rec_lams) {
         if (slotted()) {
             --tab;
             --tab;
-            --tab;
             if (NESTED) {
                 --tab;
                 // Close 'lam' and lam var 'scope'
@@ -565,7 +564,6 @@ std::string Emitter::emit_head(BB& bb, Lam* lam, bool nested) {
         toggle_bindings();
         std::print(os, "{}", emit_bb(bb, lam->filter()));
         toggle_bindings();
-        ++tab;
     } else {
         std::print(os, "{}", emit_bb(bb, lam->filter()));
     }
