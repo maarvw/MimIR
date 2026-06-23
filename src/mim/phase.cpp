@@ -29,8 +29,8 @@ void Analysis::reset() {
 }
 
 void Analysis::start() {
-    for (const auto& [f, def] : world().flags2annex())
-        rewrite_annex(f, def);
+    for (const auto& [flags, e] : world().annexes())
+        rewrite_annex(flags, e.sym, e.def);
 
     bootstrapping_ = false;
 
@@ -38,8 +38,33 @@ void Analysis::start() {
         rewrite_external(mut);
 }
 
-void Analysis::rewrite_annex(flags_t, const Def* def) { rewrite(def); }
+void Analysis::rewrite_annex(flags_t, Sym, const Def* def) { rewrite(def); }
 void Analysis::rewrite_external(Def* mut) { rewrite(mut); }
+
+Def* Analysis::rewrite_deps(Def* mut) {
+    auto _ = enter(mut);
+
+    for (auto d : mut->deps())
+        rewrite(d);
+
+    return mut;
+}
+
+Def* Analysis::rewrite_mut(Def* mut) {
+    map(mut, mut);
+
+    if (auto [lam, var] = mut->isa_binder<Lam>(); lam)
+        for (auto v : var->tprojs()) {
+            map(v, v);
+            if (auto [i, ins] = lattice_.emplace(v, v); !ins && i->second != v) {
+                // var was mapped to sth else beforehand so we need another fixed-point round
+                invalidate();
+                i->second = v;
+            }
+        }
+
+    return rewrite_deps(mut);
+}
 
 /*
  * RWPhase
@@ -53,8 +78,8 @@ void RWPhase::start() {
         todo |= analyze();
     }
 
-    for (const auto& [f, def] : old_world().flags2annex())
-        rewrite_annex(f, def);
+    for (const auto& [flags, e] : old_world().annexes())
+        rewrite_annex(flags, e.sym, e.def);
 
     bootstrapping_ = false;
 
@@ -74,7 +99,7 @@ bool RWPhase::analyze() {
     return false;
 }
 
-void RWPhase::rewrite_annex(flags_t f, const Def* def) { new_world().register_annex(f, rewrite(def)); }
+void RWPhase::rewrite_annex(flags_t f, Sym sym, const Def* def) { new_world().annexes().attach(f, sym, rewrite(def)); }
 
 void RWPhase::rewrite_external(Def* old_mut) {
     auto new_mut = rewrite(old_mut)->as_mut();
@@ -193,7 +218,7 @@ void PhaseMan::start() {
             }
         }
 
-        todo_ |= todo;
+        invalidate(todo);
     }
 }
 

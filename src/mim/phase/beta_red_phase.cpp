@@ -3,11 +3,8 @@
 namespace mim {
 
 bool BetaRedPhase::analyze() {
-    for (auto def : old_world().annexes())
+    for (auto def : old_world().roots())
         visit(def, false);
-    for (auto def : old_world().externals().muts())
-        visit(def, false);
-
     return false; // no fixed-point neccessary
 }
 
@@ -34,11 +31,11 @@ const Def* BetaRedPhase::rewrite_imm_App(const App* app) {
             map(var, new_arg);
             // if we want to reduce more than once, we need to push/pop
         }
-        todo_ = true;
+        invalidate();
         return rewrite(old_lam->body());
     }
 
-    return Rewriter::rewrite_imm_App(app);
+    return RWPhase::rewrite_imm_App(app);
 }
 
 } // namespace mim

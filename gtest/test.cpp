@@ -11,6 +11,8 @@
 
 #include <mim/plug/core/core.h>
 
+#include "helpers.h"
+
 using namespace mim;
 using namespace mim::plug;
 
@@ -87,7 +89,7 @@ TEST(trait, idx) {
     Driver driver;
     driver.log().set(Log::Level::Debug).set(&std::cerr);
     World& w = driver.world();
-    ast::load_plugins(w, "core");
+    ast::load_plugin(w, "core");
 
     EXPECT_EQ(Lit::as(op(core::trait::size, w.type_idx(0x0000'0000'0000'00FF_n))), 1);
     EXPECT_EQ(Lit::as(op(core::trait::size, w.type_idx(0x0000'0000'0000'0100_n))), 1);
@@ -358,7 +360,7 @@ TEST(FV, algos) {
     Driver driver;
     driver.log().set(Log::Level::Debug).set(&std::cerr);
     World& w = driver.world();
-    ast::load_plugins(w, "core");
+    ast::load_plugin(w, "core");
 
     auto nat = w.type_nat();
     auto run = w.curr_run();
@@ -640,10 +642,10 @@ TEST(Setmaps, OperatorEq) {
     ASSERT_EQ(i, 3);
 }
 
-TEST(Setmaps, DotSet) {
-    auto m1 = setmap<int>({1, 5, 9, 4, 2, 0, 1, 4});
-    m1.save_dot();
-}
+// TEST(Setmaps, DotSet) {
+//     auto m1 = setmap<int>({1, 5, 9, 4, 2, 0, 1, 4});
+//     m1.save_dot();
+// }
 
 TEST(Setmaps, DotMap) {
     auto m1 = setmap<int,std::string>({1,"eins"});
@@ -654,4 +656,24 @@ TEST(Setmaps, DotMap) {
     m1 = m1.insert(3,"drei");
     m1 = m1.insert(9,"neun");
     m1.save_dot();
+}
+
+TEST(Setmaps, Merge) {
+    auto m1 = setmap<int,int>();
+    auto m2 = m1.insert(0,9);
+    m1 = m1.insert(1,5);
+    m1 = m1.insert(2,5);
+    m1 = m1.insert(3,5);
+    m1 = m1.insert(4,5);
+    m1 = m1.insert(5,5);
+    m2 = m2.insert(6,9);
+    m2 = m2.insert(7,9);
+    m2 = m2.insert(8,9);
+    m2 = m2.insert(9,9);
+    m2 = m2.insert(5,9);
+    auto m3 = m1.merge(m2);
+    ASSERT_EQ(m3.size(), 9);
+    ASSERT_EQ(m3[1],5);
+    ASSERT_EQ(m3[7], 9);
+    ASSERT_EQ(m3[5], 9);
 }

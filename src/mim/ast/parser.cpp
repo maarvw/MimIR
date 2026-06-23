@@ -121,7 +121,9 @@ Ptr<Module> Parser::parse_module() {
 }
 
 Ptr<Module> Parser::import(Dbg dbg, std::ostream* md, Tok::Tag tag) {
-    auto name     = dbg.sym();
+    auto name = dbg.sym();
+    if (tag == Tag::K_plugin && !driver().is_loaded(name) && !driver().flags().bootstrap) driver().load(name);
+
     auto filename = fs::path(name.view());
     driver().VLOG("📥 import: {}", name);
 
@@ -146,7 +148,7 @@ Ptr<Module> Parser::import(Dbg dbg, std::ostream* md, Tok::Tag tag) {
 Ptr<Module> Parser::import(std::istream& is, Loc loc, const fs::path* path, std::ostream* md) {
     driver().VLOG("📄 reading: {}", path ? path->string() : "<unknown file>"s);
     if (!is) {
-        ast().error(loc, "cannot read file {}", *path);
+        ast().error(loc, "cannot read file {}", path->string());
         return {};
     }
 
@@ -159,9 +161,16 @@ Ptr<Module> Parser::import(std::istream& is, Loc loc, const fs::path* path, std:
     return mod;
 }
 
-Ptr<Module> Parser::plugin(Dbg dbg) {
-    if (!driver().is_loaded(dbg.sym()) && !driver().flags().bootstrap) driver().load(dbg.sym());
-    return import(dbg, nullptr, Tag::K_plugin);
+Ptr<Module> Parser::import_main(std::string_view input, View<std::string> plugins, std::ostream* md) {
+    Ptrs<Import> imports;
+    for (const auto& name : plugins) {
+        auto dbg = Dbg(Loc(), driver().sym(name));
+        if (auto mod = import(dbg, nullptr, Tag::K_plugin))
+            imports.emplace_back(ast().ptr<Import>(Loc(), Tag::K_plugin, dbg, std::move(mod)));
+    }
+    auto mod = import({Loc(), driver().sym(input)}, md);
+    if (mod) mod->add_implicit_imports(std::move(imports));
+    return mod;
 }
 
 /*
@@ -174,8 +183,7 @@ Ptr<Import> Parser::parse_import_or_plugin() {
     auto name  = expect(Tag::M_id, "{} name", tag == Tag::K_import ? "import" : "plugin");
     auto dbg   = name.dbg();
     expect(Tag::T_semicolon, "end of {}", tag == Tag::K_import ? "import" : "plugin");
-    if (auto module = tag == Tag::K_import ? import(dbg) : plugin(dbg))
-        return ptr<Import>(track, tag, name.dbg(), std::move(module));
+    if (auto module = import(dbg, nullptr, tag)) return ptr<Import>(track, tag, name.dbg(), std::move(module));
     return {};
 }
 
@@ -357,8 +365,8 @@ Ptr<Expr> Parser::parse_primary_expr(std::string_view ctxt) {
 }
 
 Ptr<Expr> Parser::parse_seq_expr() {
-    auto track  = tracker();
-    bool is_arr = accept(Tag::D_quote_l) ? true : (eat(Tag::D_angle_l), false);
+    auto track   = tracker();
+    bool is_pack = accept(Tag::D_angle_l) ? true : (eat(Tag::D_quote_l), false);
 
     std::deque<std::pair<Ptr<IdPtrn>, Ptr<Expr>>> arities;
 
@@ -369,18 +377,18 @@ Ptr<Expr> Parser::parse_seq_expr() {
             eat(Tag::T_colon);
         }
 
-        auto expr = parse_expr(is_arr ? "shape of an array" : "shape of a pack");
+        auto expr = parse_expr(is_pack ? "shape of pack" : "shape of a array");
         auto ptrn = IdPtrn::make_id(ast(), dbg, std::move(expr));
         arities.emplace_back(std::move(ptrn), std::move(expr));
     } while (accept(Tag::T_comma));
 
-    expect(Tag::T_semicolon, is_arr ? "array" : "pack");
-    auto body = parse_expr(is_arr ? "body of an array" : "body of a pack");
-    expect(is_arr ? Tag::D_quote_r : Tag::D_angle_r,
-           is_arr ? "closing delimiter of an array" : "closing delimiter of a pack");
+    expect(Tag::T_semicolon, is_pack ? "pack" : "array");
+    auto body = parse_expr(is_pack ? "body of a pack" : "body of an array");
+    expect(is_pack ? Tag::D_angle_r : Tag::D_quote_r,
+           is_pack ? "closing delimiter of a pack" : "closing delimiter of an array");
 
-    for (auto& [ptrn, expr] : arities | std::ranges::views::reverse)
-        body = ptr<SeqExpr>(track, is_arr, std::move(ptrn), std::move(body));
+    for (auto& [ptrn, expr] : arities | std::views::reverse)
+        body = ptr<SeqExpr>(track, is_pack, std::move(ptrn), std::move(body));
 
     return body;
 }
@@ -431,8 +439,7 @@ Ptr<Expr> Parser::parse_type_expr() {
 Ptr<Expr> Parser::parse_rule_expr() {
     auto track = tracker();
     eat(Tag::K_Rule);
-    auto meta_type = parse_expr("meta type of rule", Prec::App);
-    return ptr<RuleExpr>(track, std::move(meta_type));
+    return ptr<RuleExpr>(track, parse_expr("domain of rule", Prec::App));
 }
 
 Ptr<Expr> Parser::parse_pi_expr() {
@@ -450,9 +457,8 @@ Ptr<Expr> Parser::parse_pi_expr() {
     auto ptrn = parse_ptrn(Brckt_Style | Implicit, "domain of a "s + entity, prec);
     auto dom  = ptr<PiExpr::Dom>(domt, std::move(ptrn));
 
-    auto codom = tag != Tag::K_Cn
-                   ? (expect(Tag::T_arrow, entity), parse_expr("codomain of a "s + entity, Prec::Arrow))
-                   : nullptr;
+    auto codom = tag != Tag::K_Cn ? (expect(Tag::T_arrow, entity), parse_expr("codomain of a "s + entity, Prec::Arrow))
+                                  : nullptr;
 
     if (tag == Tag::K_Fn) dom->add_ret(ast(), codom ? std::move(codom) : ptr<HoleExpr>(curr_));
     return ptr<PiExpr>(track, tag, std::move(dom), std::move(codom));
@@ -564,7 +570,7 @@ Ptr<TuplePtrn> Parser::parse_tuple_ptrn(int style) {
                 auto rhs = ptr<IdExpr>(dbg);
                 lhs      = ptr<AppExpr>(track, false, std::move(lhs), std::move(rhs));
             }
-            auto expr = parse_infix_expr(track, std::move(lhs), Prec::App);
+            auto expr = parse_infix_expr(track, std::move(lhs));
             ptrn      = IdPtrn::make_type(ast(), std::move(expr));
         } else {
             ptrn = parse_ptrn(style & Style_Bit, "element of a tuple pattern");

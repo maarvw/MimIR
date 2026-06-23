@@ -9,7 +9,7 @@
 #include "mim/rule.h"
 #include "mim/tuple.h"
 
-#include<../external/cryo/include/cryo/setmap.h>
+#include<../submodules/cryo/include/cryo/setmap.h>
 
 
 using Def2DefMap = cryo::setmap<const mim::Def*, const mim::Def*>;
@@ -26,27 +26,12 @@ class Rewriter {
 public:
     /// @name Construction & Destruction
     ///@{
-    Rewriter(std::unique_ptr<World>&& ptr)
-        : ptr_(std::move(ptr))
-        , world_(ptr_.get()) {
-        //push(); // create root map
-    }
-    Rewriter(World& world)
-        : world_(&world) {
-        //push(); // create root map
-    }
-    virtual ~Rewriter() = default;
+    Rewriter(std::unique_ptr<World>&& ptr);
+    Rewriter(World& world);
+    virtual ~Rewriter();
 
-    void reset(std::unique_ptr<World>&& ptr) {
-        ptr_   = std::move(ptr);
-        world_ = ptr_.get();
-        reset();
-    }
-    void reset() {
-        //auto old = old2new_;//pop();
-        //assert(old2news_.empty());
-        //old2new_ = old;//push();
-    }
+    void reset(std::unique_ptr<World>&& ptr);
+    void reset();
     ///@}
 
     /// @name Getters

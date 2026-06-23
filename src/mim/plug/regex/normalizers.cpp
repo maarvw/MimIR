@@ -122,8 +122,7 @@ void merge_ranges(DefVec& args) {
 
     std::transform(ranges_begin, args.end(), std::back_inserter(old_ranges), get_range);
 
-    auto new_ranges = automaton::merge_ranges(
-        old_ranges, [&world](auto&&... args) { world.DLOG(std::forward<decltype(args)>(args)...); });
+    auto new_ranges = automaton::merge_ranges(old_ranges, [&world](std::string_view msg) { world.DLOG("{}", msg); });
 
     // invalidates ranges_begin
     args.erase(ranges_begin, args.end());
@@ -150,13 +149,13 @@ bool equals_any(const Def* lhs, const Def* rhs) {
 }
 
 bool equals_any(Defs lhs, Defs negated_rhs) {
-    Ranges lhs_ranges, rhs_ranges;
-    auto only_ranges = std::ranges::views::filter([](auto d) { return Axm::isa<range>(d); });
-    std::ranges::transform(lhs | only_ranges, std::back_inserter(lhs_ranges), get_range);
-    std::ranges::transform(negated_rhs | only_ranges, std::back_inserter(rhs_ranges), get_range);
-    if (rhs_ranges.size() != negated_rhs.size()) return false;
-    // this only holds, if the rhs only contains ranges and the ranges in lhs fully cover the ranges on rhs
-    return std::ranges::includes(lhs_ranges, rhs_ranges);
+    auto is_range = [](const Def* d) { return Axm::isa<range>(d); };
+    auto to_range = std::views::filter(is_range) | std::views::transform(get_range);
+    auto rhs_view = negated_rhs | to_range;
+
+    if (std::ranges::distance(rhs_view) != std::ranges::distance(negated_rhs)) return false;
+
+    return std::ranges::includes(lhs | to_range, rhs_view);
 }
 
 const Def* normalize_disj(const Def* type, const Def*, const Def* arg) {
@@ -203,7 +202,7 @@ const Def* normalize_disj(const Def* type, const Def*, const Def* arg) {
                 }
 
                 erase(new_args, to_remove);
-                world.DLOG("final ranges {, }", new_args);
+                world.DLOG("final ranges {}", fe::Join(new_args));
 
                 if (new_args.size() > 2) return make_binary_tree<disj>(new_args);
                 if (new_args.size() > 1) return world.call<disj, false>(new_args);
