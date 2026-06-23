@@ -183,10 +183,10 @@ std::string Emitter::id(const Def* def, bool is_var_use) const {
     std::string prefix = slots_enabled() ? "$" : "";
     std::string id;
 
-    // In slotted-egraphs variable-uses need to be explicitly wrapped in a var node i.e. in λx.x (lam $x (var
-    // $x))
     auto var_wrap = [&](std::string id) {
-        return slots_enabled() && is_var_use && id.starts_with(prefix) ? "(var " + id + ")" : id;
+        auto cond_slotted = slots_enabled() && is_var_use && id.starts_with(prefix);
+        auto cond_regular = !slotted() && is_var_use;
+        return cond_slotted || cond_regular ? std::format("(var {})", id) : id;
     };
 
     // Axioms, rules, unset lambdas(imports) and externals need to be emitted without a uid
@@ -474,18 +474,12 @@ std::string Emitter::emit_var(BB& bb, const Def* var, const Def* type, bool meta
             if (projs.size() == 1 || std::ranges::all_of(projs, [](auto proj) { return proj->sym().empty(); }))
                 std::print(os, "\n{}(cons (metavar {} {}) nil)", tab, id(var), emit_type(bb, type));
             else {
-                size_t i = 0;
                 std::vector<std::string> meta_vars;
                 for (auto proj : projs) {
-                    std::ostringstream meta_var;
                     ++tab;
-                    std::print(meta_var, "\n{}(metavar", tab);
-                    std::print(meta_var, "{}", emit_bb(bb, proj));
-                    ++tab;
-                    std::print(meta_var, "\n{}{})", tab, emit_type(bb, type->proj(i++)));
+                    auto meta_var = std::format("\n{}(metavar {})", tab, id(proj));
                     --tab;
-                    --tab;
-                    meta_vars.push_back(meta_var.str());
+                    meta_vars.push_back(meta_var);
                 }
                 std::print(os, "{}", emit_cons(meta_vars));
             }
@@ -498,12 +492,12 @@ std::string Emitter::emit_var(BB& bb, const Def* var, const Def* type, bool meta
     else if (meta_var) {
         auto projs = var->projs();
         if (projs.size() == 1 || std::ranges::all_of(projs, [](auto proj) { return proj->sym().empty(); }))
-            std::print(os, "\n{}(var {})", tab, id(var));
+            std::print(os, "\n{}(metavar {})", tab, id(var));
         else {
-            std::print(os, "\n{}(var {}", tab, id(var));
+            std::print(os, "\n{}(metavar {}", tab, id(var));
             size_t i = 0;
             for (auto proj : projs)
-                std::print(os, "{}", emit_var(bb, proj, type->proj(i++)));
+                std::print(os, "{}", emit_var(bb, proj, type->proj(i++), meta_var));
             std::print(os, ")");
         }
     } else {
@@ -781,7 +775,7 @@ std::string Emitter::emit_node(BB& bb, const Def* def, std::string node_name, bo
             std::string var_val = " " + (slotted() ? id(var) + " (scope" : id(var));
             op_vals.push_back(var_val);
         } else {
-            std::string var_val = slotted() ? " $dummy (scope" : "dummy";
+            std::string var_val = slotted() ? " $dummy (scope" : " dummy";
             op_vals.push_back(var_val);
         }
         if (auto arity_val = emit_bb(bb, pack->arity()); !arity_val.empty()) op_vals.push_back(arity_val);
