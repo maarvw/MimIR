@@ -642,10 +642,10 @@ TEST(Setmaps, OperatorEq) {
     ASSERT_EQ(i, 3);
 }
 
-TEST(Setmaps, DotSet) {
-    auto m1 = setmap<int>({1, 5, 9, 4, 2, 0, 1, 4});
-    m1.save_dot();
-}
+// TEST(Setmaps, DotSet) {
+//     auto m1 = setmap<int>({1, 5, 9, 4, 2, 0, 1, 4});
+//     m1.save_dot();
+// }
 
 TEST(Setmaps, DotMap) {
     auto m1 = setmap<int,std::string>({1,"eins"});

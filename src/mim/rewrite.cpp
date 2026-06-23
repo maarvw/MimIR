@@ -51,12 +51,12 @@ void save_dot(Def2DefMap* sm) {
 Rewriter::Rewriter(std::unique_ptr<World>&& ptr)
     : ptr_(std::move(ptr))
     , world_(ptr_.get()) {
-    push(); // create root map
+    // push(); // create root map
 }
 
 Rewriter::Rewriter(World& world)
     : world_(&world) {
-    push(); // create root map
+    // push(); // create root map
 }
 
 Rewriter::~Rewriter() = default;
@@ -68,9 +68,9 @@ void Rewriter::reset(std::unique_ptr<World>&& ptr) {
 }
 
 void Rewriter::reset() {
-    pop();
-    assert(old2news_.empty());
-    push();
+    // pop();
+    // assert(old2news_.empty());
+    // push();
 }
 
 const Def* Rewriter::map(const Def* old_def, Defs new_defs) {

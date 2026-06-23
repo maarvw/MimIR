@@ -9,7 +9,7 @@
 #include "mim/rule.h"
 #include "mim/tuple.h"
 
-#include<../external/cryo/include/cryo/setmap.h>
+#include<../submodules/cryo/include/cryo/setmap.h>
 
 
 using Def2DefMap = cryo::setmap<const mim::Def*, const mim::Def*>;
