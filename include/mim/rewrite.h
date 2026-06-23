@@ -91,7 +91,6 @@ private:
 
 protected:
     std::deque<Def2Def> old2news_;
-    std::queue<Def*> muts_;
 };
 
 /// Extends Rewriter for variable substitution.
