@@ -876,15 +876,10 @@ std::string Emitter::emit_bb(BB& bb, const Def* def) {
                 --tab;
                 std::print(os, "))");
             } else {
-                auto ext = lam->is_external() ? "extern" : "intern";
-                std::print(os, "\n{}({} {} {}", tab, lam_kind, ext, id(lam));
-                ++tab;
+                std::print(os, "\n{}({}", tab, lam_kind);
                 std::print(os, "\n{}{}", tab, emit_var(bb, lam->var(), lam->var()->type()));
-                std::print(os, "\n{}{}", tab, emit_type(bb, lam->dom()));
-                std::print(os, "\n{}{}", tab, emit_type(bb, lam->codom()));
                 std::print(os, "{}", emit_bb(bb, lam->filter()));
                 std::print(os, "{}", emit_bb(bb, lam->body()));
-                --tab;
                 std::print(os, ")");
             }
         }
