@@ -16,6 +16,6 @@
 [submodule "submodules/nanobind"]
 	path = submodules/nanobind
 	url = ../../wjakob/nanobind.git
-[submodule "cryo"]
+[submodule "submodules/cryo"]
 	path = submodules/cryo
-	url = ../../maarv/cryo.git
+	url = ../../maarvw/cryo
