@@ -17,5 +17,5 @@
 	path = submodules/nanobind
 	url = ../../wjakob/nanobind.git
 [submodule "cryo"]
-	path = external/cryo
+	path = submodules/cryo
 	url = ../../maarv/cryo.git
