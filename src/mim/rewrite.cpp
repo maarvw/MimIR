@@ -55,7 +55,7 @@ Rewriter::Rewriter(std::unique_ptr<World>&& ptr)
 }
 
 Rewriter::Rewriter(World& world)
-    : world_(&world) {
+    : world_(&world), old2new_(Def2DefMap()) {
     // push(); // create root map
 }
 

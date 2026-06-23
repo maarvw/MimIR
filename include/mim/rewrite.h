@@ -41,8 +41,8 @@ public:
 
     /// @name Push / Pop
     ///@{
-    //virtual void push() { old2news_.emplace_back(Def2DefMap{}); }
-    //virtual void pop() { old2news_.pop_back(); }
+    virtual void push() {}// old2news_.emplace_back(Def2DefMap{}); }
+    virtual void pop() { }//old2news_.pop_back(); }
     ///@}
 
     /// @name Map / Lookup
@@ -131,8 +131,8 @@ public:
 
     /// @name push / pop
     ///@{
-    //void push() final { Rewriter::push(), vars_.emplace_back(Vars()); }
-    //void pop() final { vars_.pop_back(), Rewriter::pop(); }
+    void push() final {}// Rewriter::push(), vars_.emplace_back(Vars()); }
+    void pop() final { }//vars_.pop_back(), Rewriter::pop(); }
     ///@}
 
     /// @name rewrite
