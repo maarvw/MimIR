@@ -83,6 +83,7 @@ set(FE_ABSL ON)
 
 add_subdirectory(submodules/abseil-cpp)
 add_subdirectory(submodules/fe)
+add_subdirectory(submodules/cryo) # after fe: cryo's NOT TARGET fe guard reuses mim's fe target
 add_subdirectory(submodules/lyra)
 add_subdirectory(src)
 
