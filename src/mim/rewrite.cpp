@@ -10,7 +10,7 @@
 
 namespace mim {
 
-
+#if 0
 void save_dot(Def2DefMap* sm) {
     std::string where="/tmp/SMdot.tmp";
     // if (!std::filesystem::exists(where+".tmp"))
@@ -42,7 +42,7 @@ void save_dot(Def2DefMap* sm) {
     out<<"}";
     out.close();
 }
-
+#endif
 
 /*
  * Rewriter
@@ -55,7 +55,8 @@ Rewriter::Rewriter(std::unique_ptr<World>&& ptr)
 }
 
 Rewriter::Rewriter(World& world)
-    : world_(&world), old2new_(Def2DefMap()) {
+    : world_(&world), maps_(Maps()) {
+        old2new_ = maps_.create();
     // push(); // create root map
 }
 
@@ -286,10 +287,10 @@ const Def* Rewriter::rewrite_mut_Seq(Seq* seq) {
     if (auto var = seq->has_var(); var && l && *l <= world().flags().scalarize_threshold) {
         auto new_ops = absl::FixedArray<const Def*>(*l);
         for (size_t i = 0, e = *l; i != e; ++i) {
-            auto f = MapFreezer(&old2new_);//auto old = old2new_;//push();
+            auto old = old2new_;//auto f = MapFreezer(&old2new_);//auto old = old2new_;//push();
             map(var, world().lit_idx(e, i));
             new_ops[i] = rewrite(seq->body());
-            //old2new_ = old;//pop();
+            old2new_=old;//f.~freezer();//old2new_ = old;//pop();
         }
         return map(seq, world().prod(seq->is_intro(), new_ops));
     }
@@ -341,7 +342,7 @@ const Def* Zonker::map(const Def* old_def, const Def* new_def) {
     if (!repr) repr = new_def;
     //return old2news_.back()[old_def] = repr;
     //old2news_.emplace_back(old2news_.back().insert(old_def, repr));
-    old2new_ = old2new_.insert(old_def, repr);//old2news_.back() = old2news_.back().insert(old_def, repr);
+    old2new_ = maps_.insert(old2new_, {old_def, repr});//old2news_.back() = old2news_.back().insert(old_def, repr);
     return repr;
 }
 
@@ -364,14 +365,14 @@ const Def* Zonker::lookup(const Def* old_def) {
         //if (path.empty()) continue;
 
         // path compression: flatten all visited nodes
-        //for (auto def : path)
-            //old2new[def] = repr;
-            //old2new_ = old2new_.insert(def,repr);//old2new = old2new.insert(def, repr);
+        for (auto def : path)
+            // old2new[def] = repr;
+            old2new_ = maps_.insert(old2new_,{def,repr});//old2new = old2new.insert(def, repr);
             
         std::vector<std::pair<const Def*, const Def*>> pairs;
-        for (auto def : path)
-            pairs.emplace_back(def, repr);
-        old2new_ = old2new_.mutate_keys(pairs.begin(), pairs.end());
+        // for (auto def : path)
+        //     pairs.emplace_back(def, repr);
+        // old2new_ = old2new_.mutate_keys(pairs.begin(), pairs.end());
         
 
         return repr;

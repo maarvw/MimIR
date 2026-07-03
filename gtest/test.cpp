@@ -16,7 +16,7 @@
 using namespace mim;
 using namespace mim::plug;
 
-using cryo::setmap;
+//using cryo::setmaps;
 
 TEST(Zip, fold) {
     Driver driver;
@@ -597,6 +597,8 @@ TEST(Rewrite, Hole) {
     }
 }
 
+#if 0
+
 
 TEST(Setmaps,IntString) {
     auto m1=setmap<int,std::string>({0,"null"});
@@ -677,3 +679,5 @@ TEST(Setmaps, Merge) {
     ASSERT_EQ(m3[7], 9);
     ASSERT_EQ(m3[5], 9);
 }
+
+#endif

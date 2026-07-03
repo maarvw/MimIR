@@ -9,11 +9,12 @@
 #include "mim/rule.h"
 #include "mim/tuple.h"
 
-#include<../submodules/cryo/include/cryo/setmap.h>
+#include<../submodules/cryo/include/cryo/setmaps.h>
 
 
-using Def2DefMap = cryo::setmap<const mim::Def*, const mim::Def*>;
-using MapFreezer = cryo::freezer<const mim::Def*, const mim::Def*>;
+using Maps = cryo::setmaps<const mim::Def*, const mim::Def*>;
+using Map  = cryo::setmaps<const mim::Def*, const mim::Def*>::setmap;
+using MapFreezer = cryo::setmaps<const mim::Def*, const mim::Def*>::freezer;
 
 namespace mim {
 
@@ -51,7 +52,7 @@ public:
     //virtual const Def* map(const Def* old_def, const Def* new_def) { return old2news_.back()[old_def] = new_def; }
     virtual const Def* map(const Def* old_def, const Def* new_def) { 
         //old2news_.back() = old2news_.back().insert(old_def,new_def); 
-        old2new_ = old2new_.insert(old_def,new_def); 
+        old2new_ = maps_.insert(old2new_, {old_def,new_def}); 
         //old2news_.emplace_back(newmap);
         return new_def;
     }
@@ -67,7 +68,7 @@ public:
     virtual const Def* lookup(const Def* old_def) {
         //for (const auto& old2new : old2news_ | std::views::reverse)
         //    if (auto i = old2new.find(old_def); i != old2new.end()) return i->second;
-        if (auto i = old2new_.find(old_def); i != old2new_.end()) return i->second;
+        if (old2new_.contains(old_def)) return old2new_[old_def];
         return nullptr;
     }
     ///@}
@@ -105,7 +106,8 @@ private:
 protected:
     //std::deque<Def2Def> old2news_;
     //std::deque<Def2DefMap> old2news_;
-    Def2DefMap old2new_;
+    Maps maps_;
+    Map old2new_;
 };
 
 /// Extends Rewriter for variable substitution.
@@ -186,7 +188,8 @@ public:
 private:
     const Def* get(const Def* old_def) {
         //auto& old2new = old2news_.back();
-        if (auto i = old2new_.find(old_def); i != old2new_.end()) return i->second;
+        //if (auto i = old2new_.find(old_def); i != old2new_.end()) return i->second;
+        if (old2new_.contains(old_def)) return old2new_[old_def];
         return nullptr;
     }
 };
