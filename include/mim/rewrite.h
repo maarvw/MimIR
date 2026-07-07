@@ -96,6 +96,7 @@ public:
     friend void swap(Rewriter& rw1, Rewriter& rw2) noexcept {
         using std::swap;
         swap(rw1.old2new_, rw2.old2new_);//swap(rw1.old2news_, rw2.old2news_);
+        swap(rw1.maps_, rw2.maps_); // old2new_ points into this arena - must move together
         // Do NOT swap ptr_ and world_: they are back pointers!
     }
 
