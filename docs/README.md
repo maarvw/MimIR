@@ -46,7 +46,7 @@ MimIR is well suited for DSL compilers, tensor compilers, automatic differentiat
 ## 🚀 Quick Start
 
 ```sh
-git clone --recursive git@github.com:mimir/mimir.git
+git clone --recursive git@github.com:maarvw/mimir.git
 cd mimir
 cmake -S . -B build -DBUILD_TESTING=ON -DMIM_BUILD_EXAMPLES=ON
 cmake --build build -j$(nproc)
