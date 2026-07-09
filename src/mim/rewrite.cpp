@@ -1,5 +1,7 @@
 #include "mim/rewrite.h"
 
+#include <typeinfo>
+
 #include <absl/container/fixed_array.h>
 
 #include "mim/world.h"
@@ -301,9 +303,14 @@ const Def* Rewriter::rewrite_mut_Seq(Seq* seq) {
 const Def* Rewriter::rewrite_stub(Def* old_mut, Def* new_mut) {
     map(old_mut, new_mut);
 
-    if (old_mut->is_set())
-        for (size_t i = 0, e = old_mut->num_ops(); i != e; ++i)
-            new_mut->set(i, rewrite(old_mut->op(i)));
+    if (old_mut->is_set()) {
+        if (typeid(*this) == typeid(Rewriter))
+            for (size_t i = 0, e = old_mut->num_ops(); i != e; ++i)
+                new_mut->set(i, world().subst(old_mut->op(i), old2new_));
+        else
+            for (size_t i = 0, e = old_mut->num_ops(); i != e; ++i)
+                new_mut->set(i, rewrite(old_mut->op(i)));
+    }
 
     return new_mut;
 }
