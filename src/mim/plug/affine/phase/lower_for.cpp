@@ -4,6 +4,7 @@
 #include <mim/tuple.h>
 
 #include <mim/plug/mem/mem.h>
+
 #include "mim/rewrite.h"
 
 #include "mim/plug/affine/affine.h"
@@ -62,19 +63,21 @@ const Def* LowerFor::rewrite_imm_App(const App* app) {
         new_head_lam->branch(false, new_cmp, new_body, new_exit, new_mem);
         new_yield->app(false, new_head_lam, merge_t(new_inc, new_yield->var(), new_mem));
 
-        auto f1 = MapFreezer(&old2new_);//auto old = old2new_;//push();
-        map(old_body_lam->var(), {new_iter, new_acc, new_yield});
-        auto new_body_filter = rewrite(old_body_lam->filter());
-        auto new_body_value  = rewrite(old_body_lam->body());
-        new_body->set({new_body_filter, new_body_value});
-        f1.~freezer(); //pop();
+        {
+            auto _ = MapFreezer(&old2new_);
+            map(old_body_lam->var(), {new_iter, new_acc, new_yield});
+            auto new_body_filter = rewrite(old_body_lam->filter());
+            auto new_body_value  = rewrite(old_body_lam->body());
+            new_body->set({new_body_filter, new_body_value});
+        }
 
-        auto f2 = MapFreezer(&old2new_);//old = old2new_;//push();
-        map(old_exit_lam->var(), new_acc);
-        auto new_exit_filter = rewrite(old_exit_lam->filter());
-        auto new_exit_value  = rewrite(old_exit_lam->body());
-        new_exit->set({new_exit_filter, new_exit_value});
-        f2.~freezer(); //pop();
+        {
+            auto _ = MapFreezer(&old2new_);
+            map(old_exit_lam->var(), new_acc);
+            auto new_exit_filter = rewrite(old_exit_lam->filter());
+            auto new_exit_value  = rewrite(old_exit_lam->body());
+            new_exit->set({new_exit_filter, new_exit_value});
+        }
 
         return new_world().app(new_head_lam, merge_t(new_begin, new_init, new_mem));
     }

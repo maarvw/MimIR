@@ -51,14 +51,15 @@ void save_dot(Def2DefMap* sm) {
 Rewriter::Rewriter(std::unique_ptr<World>&& ptr)
     : ptr_(std::move(ptr))
     , world_(ptr_.get()) {
-    // push(); // create root map
 }
 
 Rewriter::Rewriter(World& world)
-    : world_(&world)
-    , maps_(Maps()) {
-    old2new_ = maps_.create();
-    // push(); // create root map
+    : world_(&world) {
+}
+
+const Def* Rewriter::map(const Def* old_def, const Def* new_def) {
+    old2new_ = world().rwmaps().insert(old2new_, {old_def, new_def});
+    return new_def;
 }
 
 Rewriter::~Rewriter() = default;
@@ -334,7 +335,7 @@ const Def* VarRewriter::rewrite_mut(Def* mut) {
 const Def* Zonker::map(const Def* old_def, const Def* new_def) {
     auto repr = lookup(new_def); // always normalize new_def to its representative
     if (!repr) repr = new_def;
-    old2new_ = maps_.insert(old2new_, {old_def, repr});
+    old2new_ = world().rwmaps().insert(old2new_, {old_def, repr});
     return repr;
 }
 
@@ -355,7 +356,7 @@ const Def* Zonker::lookup(const Def* old_def) {
     // path compression: flatten all visited nodes
     // TODO we could optimize that
     for (auto def : path)
-        old2new_ = maps_.insert(old2new_, {def, repr});
+        old2new_ = world().rwmaps().insert(old2new_, {def, repr});
 
     return repr;
 }

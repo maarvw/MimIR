@@ -24,6 +24,8 @@ concept Enum = std::is_enum_v<std::remove_reference_t<T>>;
 class Driver;
 struct Flags;
 
+using RWMaps = cryo::setmaps<const mim::Def*, const mim::Def*>;
+
 /// The World represents the whole program and manages creation of MimIR nodes (Def%s).
 /// Def%s are hashed into an internal HashSet.
 /// The World's factory methods just calculate a hash and lookup the Def, if it is already present, or create a new one
@@ -693,6 +695,8 @@ public:
     [[nodiscard]] auto& muts() { return move_.muts; }
     [[nodiscard]] const auto& vars() const { return move_.vars; }
     [[nodiscard]] const auto& muts() const { return move_.muts; }
+    [[nodiscard]] auto& rwmaps() { return move_.rwmaps; }
+    [[nodiscard]] const auto& rwmaps() const { return move_.rwmaps; }
 
     /// Yields the new body of `[mut->var() -> arg]mut`.
     /// The new body may have fewer elements as `mut->num_ops()` according to Def::reduction_offset.
@@ -875,6 +879,7 @@ private:
         absl::flat_hash_set<const Def*, SeaHash, SeaEq> defs;
         Sets<Def> muts;
         Sets<const Var> vars;
+        RWMaps rwmaps;
         absl::flat_hash_map<std::pair<const Var*, const Def*>, const Reduct*> substs;
 
         friend void swap(Move& m1, Move& m2) noexcept {
@@ -886,6 +891,7 @@ private:
             swap(m1.substs,       m2.substs);
             swap(m1.vars,         m2.vars);
             swap(m1.muts,         m2.muts);
+            swap(m1.rwmaps,       m2.rwmaps);
             swap(m1.externals,    m2.externals);
             swap(m1.annexes,      m2.annexes);
             // clang-format on

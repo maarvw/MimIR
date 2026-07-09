@@ -2,6 +2,8 @@
 
 #include <memory>
 
+#include <cryo/setmaps.h>
+
 #include "mim/check.h"
 #include "mim/def.h"
 #include "mim/lam.h"
@@ -9,22 +11,19 @@
 #include "mim/rule.h"
 #include "mim/tuple.h"
 
-#include<../submodules/cryo/include/cryo/setmaps.h>
-
-
-using Maps = cryo::setmaps<const mim::Def*, const mim::Def*>;
-using Map  = cryo::setmaps<const mim::Def*, const mim::Def*>::setmap;
-using MapFreezer = cryo::setmaps<const mim::Def*, const mim::Def*>::freezer;
-
 namespace mim {
 
 class World;
+
+using MapFreezer = cryo::setmaps<const mim::Def*, const mim::Def*>::freezer;
 
 /// Recurseivly rebuilds part of a program **into** the provided World w.r.t.\ Rewriter::map.
 /// This World may be different than the World we started with.
 /// @see @ref rewriter
 class Rewriter {
 public:
+    using Map = cryo::setmaps<const mim::Def*, const mim::Def*>::setmap;
+
     /// @name Construction & Destruction
     ///@{
     Rewriter(std::unique_ptr<World>&& ptr);
@@ -44,10 +43,7 @@ public:
     /// @name Map / Lookup
     /// Map @p old_def to @p new_def and returns @p new_def.
     ///@{
-    virtual const Def* map(const Def* old_def, const Def* new_def) {
-        old2new_ = maps_.insert(old2new_, {old_def,new_def});
-        return new_def;
-    }
+    virtual const Def* map(const Def* old_def, const Def* new_def);
 
     // clang-format off
     const Def* map(const Def* old_def ,       Defs new_defs);
@@ -85,8 +81,7 @@ public:
 
     friend void swap(Rewriter& rw1, Rewriter& rw2) noexcept {
         using std::swap;
-        swap(rw1.old2new_, rw2.old2new_);//swap(rw1.old2news_, rw2.old2news_);
-        swap(rw1.maps_, rw2.maps_); // old2new_ points into this arena - must move together
+        swap(rw1.old2new_, rw2.old2new_); // swap(rw1.old2news_, rw2.old2news_);
         // Do NOT swap ptr_ and world_: they are back pointers!
     }
 
@@ -95,7 +90,6 @@ private:
     World* world_;
 
 protected:
-    Maps maps_;
     Map old2new_;
 };
 
