@@ -109,6 +109,11 @@ Sym World::sym(const std::string& s) { return driver().sym(s); }
  * factory methods
  */
 
+const Def* World::subst(const Def* def, RWMap map) {
+    if (map.empty()) return def;
+    return unify<Subst>(def, map);
+}
+
 const Type* World::type(const Def* level) {
     if (!level) return nullptr;
     level = level->zonk();

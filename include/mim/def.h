@@ -5,6 +5,7 @@
 #include <optional>
 #include <span>
 
+#include <cryo/setmaps.h>
 #include <fe/assert.h>
 #include <fe/cast.h>
 #include <fe/enum.h>
@@ -40,6 +41,7 @@
     X(Axm)                                                                                                         \
     X(Var)                                                                                                         \
     X(Proxy)                                                                                                       \
+    X(Subst)                                                                                                       \
     X(Type)   X(Univ)  X(UMax)    X(UInc)                                                                          \
     X(Pi)     X(Lam)   X(App)                                                                                      \
     X(Sigma)  X(Tuple) X(Extract) X(Insert)                                                                        \
@@ -100,6 +102,7 @@ using Vars    = Sets<const Var>::Set;
 ///@}
 
 using NormalizeFn = const Def* (*)(const Def*, const Def*, const Def*);
+using RWMap       = cryo::setmaps<const mim::Def*, const mim::Def*>::setmap;
 
 /// @name Enums that classify certain aspects of Def%s.
 ///@{
@@ -984,16 +987,18 @@ private:
 
 class Subst : public Def, public Setters<Subst> {
 private:
-    Subst(const Def* level)
-        : Def(Node, nullptr, {level}, 0) {}
+    Subst(const Def* def, RWMap map)
+        : Def(Node, def->type(), {def}, map.data()) {}
 
 public:
     using Setters<Subst>::set;
 
     /// @name ops
     ///@{
-    const Def* level() const { return op(0); }
+    const Def* op() const { return Def::op(0); }
     ///@}
+
+    RWMap rwmap() const { return flags(); }
 
     static constexpr auto Node      = mim::Node::Subst;
     static constexpr size_t Num_Ops = 1;

@@ -147,6 +147,12 @@ const Def* Rewriter::rewrite_mut_Arr (      Arr*  d) { return rewrite_mut_Seq(d)
 const Def* Rewriter::rewrite_mut_Pack(      Pack* d) { return rewrite_mut_Seq(d); }
 // clang-format on
 
+const Def* Rewriter::rewrite_imm_Subst(const Subst* subst) {
+    for (auto old2new : subst->rwmap())
+        old2new_ = world().rwmaps().insert(old2new_, old2new);
+    return rewrite(subst->op());
+}
+
 const Def* Rewriter::rewrite_imm_App(const App* d) {
     // Rewrite the arg before the callee:
     // the callee may be a recursive mutable that, when rewritten first, eagerly expands its body before the concrete

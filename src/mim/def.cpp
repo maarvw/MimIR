@@ -126,6 +126,7 @@ const Def* Rule   ::rebuild_(World& w, const Def* t, Defs o) const { return w.ru
 const Def* Reform ::rebuild_(World& w, const Def* ,  Defs o) const { return w.reform(o[0]); }
 const Def* Sigma  ::rebuild_(World& w, const Def*  , Defs o) const { return w.sigma(o); }
 const Def* Split  ::rebuild_(World& w, const Def* t, Defs o) const { return w.split(t, o[0]); }
+const Def* Subst  ::rebuild_(World& w, const Def*  , Defs o) const { return w.subst(o[0], rwmap()); }
 const Def* Match  ::rebuild_(World& w, const Def*  , Defs o) const { return w.match(o); }
 const Def* Tuple  ::rebuild_(World& w, const Def* t, Defs o) const { return w.tuple(t, o); }
 const Def* Type   ::rebuild_(World& w, const Def*  , Defs o) const { return w.type(o[0]); }

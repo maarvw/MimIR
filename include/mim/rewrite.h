@@ -2,8 +2,6 @@
 
 #include <memory>
 
-#include <cryo/setmaps.h>
-
 #include "mim/check.h"
 #include "mim/def.h"
 #include "mim/lam.h"
@@ -21,8 +19,6 @@ using MapFreezer = cryo::setmaps<const mim::Def*, const mim::Def*>::freezer;
 /// @see @ref rewriter
 class Rewriter {
 public:
-    using Map = cryo::setmaps<const mim::Def*, const mim::Def*>::setmap;
-
     /// @name Construction & Destruction
     ///@{
     Rewriter(std::unique_ptr<World>&& ptr);
@@ -30,7 +26,7 @@ public:
     virtual ~Rewriter();
 
     void reset(std::unique_ptr<World>&& ptr);
-    void reset() { old2new_ = Map(); }
+    void reset() { old2new_ = RWMap(); }
 
     ///@}
 
@@ -80,7 +76,7 @@ public:
 
     friend void swap(Rewriter& rw1, Rewriter& rw2) noexcept {
         using std::swap;
-        swap(rw1.old2new_, rw2.old2new_); // swap(rw1.old2news_, rw2.old2news_);
+        swap(rw1.old2new_, rw2.old2new_);
         // Do NOT swap ptr_ and world_: they are back pointers!
     }
 
@@ -89,7 +85,7 @@ private:
     World* world_;
 
 protected:
-    Map old2new_;
+    RWMap old2new_;
 };
 
 /// Extends Rewriter for variable substitution.

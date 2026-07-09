@@ -354,6 +354,7 @@ public:
         assert(this == &res->world());
         return res;
     }
+    const Def* subst(const Def*, RWMap);
     ///@}
 
     /// @name Axm
