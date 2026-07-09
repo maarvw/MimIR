@@ -55,15 +55,15 @@ jobs:
       - name: Build
         run: cmake --build ${{github.workspace}}/build -v --target docs
 
-      - name: Checkout docs repository
-        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) }}
-        uses: actions/checkout@v4
-        with:
-          repository: mimir/mimir.github.io
-          ref: master
-          path: site
-          ssh-key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
-
-      - name: Deploy
-        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) }}
-        run: python3 docs/deploy.py
+      # - name: Checkout docs repository
+      #   if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) }}
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: mimir/mimir.github.io
+      #     ref: master
+      #     path: site
+      #     ssh-key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+      #
+      # - name: Deploy
+      #   if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) }}
+      #   run: python3 docs/deploy.py
