@@ -304,10 +304,11 @@ const Def* Rewriter::rewrite_stub(Def* old_mut, Def* new_mut) {
     map(old_mut, new_mut);
 
     if (old_mut->is_set()) {
-        if (typeid(*this) == typeid(Rewriter))
+        if (typeid(*this) == typeid(Rewriter)) {
+            assert(false && "we are not running into this code???");
             for (size_t i = 0, e = old_mut->num_ops(); i != e; ++i)
                 new_mut->set(i, world().subst(old_mut->op(i), old2new_));
-        else
+        } else
             for (size_t i = 0, e = old_mut->num_ops(); i != e; ++i)
                 new_mut->set(i, rewrite(old_mut->op(i)));
     }
