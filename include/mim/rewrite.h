@@ -14,7 +14,6 @@
 namespace mim {
 
 class World;
-
 using MapFreezer = cryo::setmaps<const mim::Def*, const mim::Def*>::freezer;
 
 /// Recurseivly rebuilds part of a program **into** the provided World w.r.t.\ Rewriter::map.
@@ -107,11 +106,7 @@ public:
     }
 
     // Add initial mapping from @pvar -> @p arg.
-    VarRewriter& add(const Var* var, const Def* arg) {
-        map(var, arg);
-        vars_.emplace_back(var);
-        return *this;
-    }
+    VarRewriter& add(const Var* var, const Def* arg);
     ///@}
 
     /// @name rewrite
@@ -128,12 +123,11 @@ public:
 
 private:
     bool has_intersection(const Def* old_def) {
-        for (const auto& vars : vars_ | std::views::reverse)
-            if (vars.has_intersection(old_def->free_vars())) return true;
+        if (vars_.has_intersection(old_def->free_vars())) return true;
         return false;
     }
 
-    Vector<Vars> vars_;
+    Vars vars_;
 };
 
 class Zonker : public Rewriter {

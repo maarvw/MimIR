@@ -50,12 +50,10 @@ void save_dot(Def2DefMap* sm) {
 
 Rewriter::Rewriter(std::unique_ptr<World>&& ptr)
     : ptr_(std::move(ptr))
-    , world_(ptr_.get()) {
-}
+    , world_(ptr_.get()) {}
 
 Rewriter::Rewriter(World& world)
-    : world_(&world) {
-}
+    : world_(&world) {}
 
 const Def* Rewriter::map(const Def* old_def, const Def* new_def) {
     old2new_ = world().rwmaps().insert(old2new_, {old_def, new_def});
@@ -308,6 +306,12 @@ const Def* Rewriter::rewrite_stub(Def* old_mut, Def* new_mut) {
  * VarRewriter
  */
 
+VarRewriter& VarRewriter::add(const Var* var, const Def* arg) {
+    map(var, arg);
+    vars_ = world().vars().insert(vars_, var);
+    return *this;
+}
+
 const Def* VarRewriter::rewrite(const Def* old_def) {
     if (auto new_def = lookup(old_def)) return new_def;
 
@@ -320,11 +324,7 @@ const Def* VarRewriter::rewrite(const Def* old_def) {
 }
 
 const Def* VarRewriter::rewrite_mut(Def* mut) {
-    if (auto var = mut->has_var()) {
-        auto& vars = vars_.back();
-        vars       = world().vars().insert(vars, var);
-    }
-
+    if (auto var = mut->has_var()) vars_ = world().vars().insert(vars_, var);
     return Rewriter::rewrite_mut(mut);
 }
 
@@ -387,4 +387,3 @@ const Def* Zonker::rewire_mut(Def* mut) {
 }
 
 } // namespace mim
-
