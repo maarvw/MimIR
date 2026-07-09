@@ -32,7 +32,8 @@ public:
     virtual ~Rewriter();
 
     void reset(std::unique_ptr<World>&& ptr);
-    void reset();
+    void reset() { old2new_ = Map(); }
+
     ///@}
 
     /// @name Getters
@@ -40,20 +41,11 @@ public:
     World& world() { return *world_; }
     ///@}
 
-    /// @name Push / Pop
-    ///@{
-    virtual void push() {}// old2news_.emplace_back(Def2DefMap{}); }
-    virtual void pop() { }//old2news_.pop_back(); }
-    ///@}
-
     /// @name Map / Lookup
     /// Map @p old_def to @p new_def and returns @p new_def.
     ///@{
-    //virtual const Def* map(const Def* old_def, const Def* new_def) { return old2news_.back()[old_def] = new_def; }
-    virtual const Def* map(const Def* old_def, const Def* new_def) { 
-        //old2news_.back() = old2news_.back().insert(old_def,new_def); 
-        old2new_ = maps_.insert(old2new_, {old_def,new_def}); 
-        //old2news_.emplace_back(newmap);
+    virtual const Def* map(const Def* old_def, const Def* new_def) {
+        old2new_ = maps_.insert(old2new_, {old_def,new_def});
         return new_def;
     }
 
@@ -66,8 +58,6 @@ public:
     /// Lookup `old_def` by searching in reverse through the stack of maps.
     /// @returns `nullptr` if nothing was found.
     virtual const Def* lookup(const Def* old_def) {
-        //for (const auto& old2new : old2news_ | std::views::reverse)
-        //    if (auto i = old2new.find(old_def); i != old2new.end()) return i->second;
         if (old2new_.contains(old_def)) return old2new_[old_def];
         return nullptr;
     }
@@ -105,8 +95,6 @@ private:
     World* world_;
 
 protected:
-    //std::deque<Def2Def> old2news_;
-    //std::deque<Def2DefMap> old2news_;
     Maps maps_;
     Map old2new_;
 };
@@ -130,12 +118,6 @@ public:
         vars_.emplace_back(var);
         return *this;
     }
-    ///@}
-
-    /// @name push / pop
-    ///@{
-    void push() final {}// Rewriter::push(), vars_.emplace_back(Vars()); }
-    void pop() final { }//vars_.pop_back(), Rewriter::pop(); }
     ///@}
 
     /// @name rewrite
@@ -188,8 +170,6 @@ public:
 
 private:
     const Def* get(const Def* old_def) {
-        //auto& old2new = old2news_.back();
-        //if (auto i = old2new_.find(old_def); i != old2new_.end()) return i->second;
         if (old2new_.contains(old_def)) return old2new_[old_def];
         return nullptr;
     }

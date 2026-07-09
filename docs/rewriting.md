@@ -36,8 +36,7 @@ At a high level, [`Rewriter`](@ref mim::Rewriter) preserves:
 
 ### Scoping
 
-[`Rewriter`](@ref mim::Rewriter) uses a stack of mappings rather than a single global map.
-This allows temporary, scoped rewrites.
+[`Rewriter`](@ref mim::Rewriter) uses an immutable data structure to keep track of scoped rewrites.
 This matters whenever rewriting enters a context where some old node should mean something different locally than globally.
 Inner mappings shadow outer ones, and leaving the scope removes the temporary bindings again.
 This scoped structure is important for binder-sensitive rewrites and for transformations that temporarily substitute certain nodes while rebuilding a larger term.
@@ -49,17 +48,12 @@ When a transformation may encounter recursion, cycles, or binder-introduced vari
 
 1. create the replacement mutable first,
 2. record the old-to-new mapping immediately,
-3. push a temporary scope if the rewrite introduces binder-local substitutions,
 4. rewrite operands, filters, codomains, or bodies,
 5. pop the temporary scope again,
 6. finally fill the mutable via [mim::Def::set](@ref mim::Def::set).
 
 The base [Rewriter](@ref mim::Rewriter) follows this pattern through [mim::Rewriter::rewrite_stub](@ref mim::Rewriter::rewrite_stub), and custom phases often mirror it manually when they need more control over how a mutable is rebuilt.
 The crucial point is that recursive self-references must see the already-created replacement mutable instead of triggering another rebuild of the same node.
-
-The same stack discipline is used for binder-sensitive substitutions.
-Temporary mappings introduced while rewriting under a binder should stay local to that binder, typically via [mim::Rewriter::push](@ref mim::Rewriter::push) / [mim::Rewriter::pop](@ref mim::Rewriter::pop).
-This is the common pattern when rewriting dependent codomains under fresh variables, substituting a variable with a temporary representative, or rebuilding a body under newly introduced binder variables.
 
 So the practical rule of thumb is:
 

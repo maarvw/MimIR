@@ -30,7 +30,7 @@ void save_dot(Def2DefMap* sm) {
             auto l = n->left()->val();
             out << "\""<<(l.first?l.first->gid():0)<<": "<<(l.second?l.second->gid():0)<<"\"";
             out << ";\n";
-        } 
+        }
         if (n->has_right()) {
             out << "\""<<(it->first?it->first->gid():0)<<": "<<(it->second?it->second->gid():0)<<"\"";
             out << " -> ";
@@ -55,8 +55,9 @@ Rewriter::Rewriter(std::unique_ptr<World>&& ptr)
 }
 
 Rewriter::Rewriter(World& world)
-    : world_(&world), maps_(Maps()) {
-        old2new_ = maps_.create();
+    : world_(&world)
+    , maps_(Maps()) {
+    old2new_ = maps_.create();
     // push(); // create root map
 }
 
@@ -66,12 +67,6 @@ void Rewriter::reset(std::unique_ptr<World>&& ptr) {
     ptr_   = std::move(ptr);
     world_ = ptr_.get();
     reset();
-}
-
-void Rewriter::reset() {
-    // pop();
-    // assert(old2news_.empty());
-    // push();
 }
 
 const Def* Rewriter::map(const Def* old_def, Defs new_defs) {
@@ -287,10 +282,9 @@ const Def* Rewriter::rewrite_mut_Seq(Seq* seq) {
     if (auto var = seq->has_var(); var && l && *l <= world().flags().scalarize_threshold) {
         auto new_ops = absl::FixedArray<const Def*>(*l);
         for (size_t i = 0, e = *l; i != e; ++i) {
-            auto old = old2new_;//auto f = MapFreezer(&old2new_);//auto old = old2new_;//push();
+            auto _ = MapFreezer(&old2new_);
             map(var, world().lit_idx(e, i));
             new_ops[i] = rewrite(seq->body());
-            old2new_=old;//f.~freezer();//old2new_ = old;//pop();
         }
         return map(seq, world().prod(seq->is_intro(), new_ops));
     }
@@ -340,45 +334,30 @@ const Def* VarRewriter::rewrite_mut(Def* mut) {
 const Def* Zonker::map(const Def* old_def, const Def* new_def) {
     auto repr = lookup(new_def); // always normalize new_def to its representative
     if (!repr) repr = new_def;
-    //return old2news_.back()[old_def] = repr;
-    //old2news_.emplace_back(old2news_.back().insert(old_def, repr));
-    old2new_ = maps_.insert(old2new_, {old_def, repr});//old2news_.back() = old2news_.back().insert(old_def, repr);
+    old2new_ = maps_.insert(old2new_, {old_def, repr});
     return repr;
 }
 
 const Def* Zonker::lookup(const Def* old_def) {
-    //save_dot(&old2new_);
-    //for (auto& old2new : old2news_ | std::views::reverse) {
-        const Def* repr;
-        auto path = DefVec();
-        while (true) {
-            repr = get(old_def);
+    const Def* repr;
+    auto path = DefVec();
+    while (true) {
+        repr = get(old_def);
 
-            if (repr == nullptr) break;
+        if (repr == nullptr) break;
 
-            path.emplace_back(repr);
-            if (repr == old_def) break; // explicit self-map
+        path.emplace_back(repr);
+        if (repr == old_def) break; // explicit self-map
 
-            old_def = repr;
-        }
+        old_def = repr;
+    }
 
-        //if (path.empty()) continue;
+    // path compression: flatten all visited nodes
+    // TODO we could optimize that
+    for (auto def : path)
+        old2new_ = maps_.insert(old2new_, {def, repr});
 
-        // path compression: flatten all visited nodes
-        for (auto def : path)
-            // old2new[def] = repr;
-            old2new_ = maps_.insert(old2new_,{def,repr});//old2new = old2new.insert(def, repr);
-            
-        std::vector<std::pair<const Def*, const Def*>> pairs;
-        // for (auto def : path)
-        //     pairs.emplace_back(def, repr);
-        // old2new_ = old2new_.mutate_keys(pairs.begin(), pairs.end());
-        
-
-        return repr;
-    //}
-
-    return nullptr;
+    return repr;
 }
 
 const Def* Zonker::rewrite(const Def* def) {
@@ -406,9 +385,5 @@ const Def* Zonker::rewire_mut(Def* mut) {
     return mut;
 }
 
-
-
-
-
-
 } // namespace mim
+

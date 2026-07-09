@@ -23,7 +23,7 @@
     X(Var,    Judge::Intro)                                                                                        \
     X(Global, Judge::Intro)                                                                                        \
     X(Proxy,  Judge::Intro)                                                                                        \
-    X(Hole,   Judge::Hole )                                                                                        \
+    X(Hole,   Judge::Hole ) X(Subst, Judge::Meta )                                                                 \
     X(Type,   Judge::Meta ) X(Univ,  Judge::Meta ) X(UMax,    Judge::Meta) X(UInc,   (Judge::Meta               )) \
     X(Pi,     Judge::Form ) X(Lam,   Judge::Intro) X(App,     Judge::Elim)                                         \
     X(Sigma,  Judge::Form ) X(Tuple, Judge::Intro) X(Extract, Judge::Elim) X(Insert, (Judge::Intro | Judge::Elim)) \
@@ -978,6 +978,28 @@ public:
 private:
     const Def* rebuild_(World&, const Def*, Defs) const final;
     Global* stub_(World&, const Def*) final;
+
+    friend class World;
+};
+
+class Subst : public Def, public Setters<Subst> {
+private:
+    Subst(const Def* level)
+        : Def(Node, nullptr, {level}, 0) {}
+
+public:
+    using Setters<Subst>::set;
+
+    /// @name ops
+    ///@{
+    const Def* level() const { return op(0); }
+    ///@}
+
+    static constexpr auto Node      = mim::Node::Subst;
+    static constexpr size_t Num_Ops = 1;
+
+private:
+    const Def* rebuild_(World&, const Def*, Defs) const final;
 
     friend class World;
 };
