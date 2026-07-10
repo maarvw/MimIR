@@ -150,8 +150,7 @@ const Def* Rewriter::rewrite_mut_Pack(      Pack* d) { return rewrite_mut_Seq(d)
 // clang-format on
 
 const Def* Rewriter::rewrite_imm_Subst(const Subst* subst) {
-    for (auto old2new : subst->rwmap())
-        old2new_ = world().rwmaps().insert(old2new_, old2new);
+    old2new_ = world().rwmaps().merge(old2new_,subst->rwmap());
     return rewrite(subst->op());
 }
 
