@@ -143,7 +143,7 @@ public:
     /// @name rewrite
     ///@{
     const Def* rewrite(const Def*) final;
-    const Def* rewrite_mut(Def* mut) final { return map(mut, mut); }
+    const Def* rewrite_mut(Def* mut) final { return rewire_mut(mut); }
     const Def* rewire_mut(Def*);
     ///@}
 

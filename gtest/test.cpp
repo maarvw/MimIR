@@ -11,6 +11,7 @@
 
 #include <mim/plug/core/core.h>
 
+#include "cryo/setmaps.h"
 #include "helpers.h"
 
 using namespace mim;
@@ -596,6 +597,34 @@ TEST(Rewrite, Hole) {
         ASSERT_EQ(hole3, res);
     }
 }
+
+
+TEST(Setmaps, MergeArrs) {
+    auto ms = cryo::setmaps<int,int>();
+    auto m1 = ms.create();
+    for (int i = 1; i <= 10; i++) m1 = ms.insert(m1, {i,-i});
+    auto m2 = ms.create();
+    for (int i = 6; i <= 15; i++) m2 = ms.insert(m2, {i,i});
+    auto m3 = ms.merge(m1,m2);
+
+    ASSERT_EQ(m3.size(), 15);
+    for (int i=1; i<=5; ++i) ASSERT_EQ(m3[i],-i);
+    for (int i=6;i<=15;++i) ASSERT_EQ(m3[i], i);
+}
+
+TEST(Setmaps, MergeNodes) {
+    auto ms = cryo::setmaps<int,int>();
+    auto m1 = ms.create();
+    for (int i = 1; i <= 20; i++) m1 = ms.insert(m1, {i,-i});
+    auto m2 = ms.create();
+    for (int i = 15; i <= 35; i++) m2 = ms.insert(m2, {i,i});
+    auto m3 = ms.merge(m1,m2);
+
+    ASSERT_EQ(m3.size(),35);
+    for (int i=1; i<15; ++i) ASSERT_EQ(m3[i],-i);
+    for (int i=15;i<=35;++i) ASSERT_EQ(m3[i], i);
+}
+
 
 #if 0
 

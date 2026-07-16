@@ -303,13 +303,12 @@ const Def* Rewriter::rewrite_stub(Def* old_mut, Def* new_mut) {
     map(old_mut, new_mut);
 
     if (old_mut->is_set()) {
-        if (typeid(*this) == typeid(Rewriter)) {
-            assert(false && "we are not running into this code???");
-            for (size_t i = 0, e = old_mut->num_ops(); i != e; ++i)
-                new_mut->set(i, world().subst(old_mut->op(i), old2new_));
-        } else
+        if (typeid(*this) == typeid(Zonker)) {
             for (size_t i = 0, e = old_mut->num_ops(); i != e; ++i)
                 new_mut->set(i, rewrite(old_mut->op(i)));
+        } else
+            for (size_t i = 0, e = old_mut->num_ops(); i != e; ++i)
+                new_mut->set(i, world().subst(old_mut->op(i), old2new_));
     }
 
     return new_mut;
@@ -337,9 +336,12 @@ const Def* VarRewriter::rewrite(const Def* old_def) {
 }
 
 const Def* VarRewriter::rewrite_mut(Def* mut) {
-    if (auto var = mut->has_var()) vars_ = world().vars().insert(vars_, var);
+    if (auto var = mut->has_var())
+        vars_ = world().vars().insert(vars_, var);
+
     return Rewriter::rewrite_mut(mut);
 }
+
 
 /*
  * Zonker

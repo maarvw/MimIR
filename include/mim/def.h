@@ -124,6 +124,7 @@ enum class Dep : unsigned {
     Var   = 1 << 1,
     Hole  = 1 << 2,
     Proxy = 1 << 3,
+    Subst = 1 << 4,
 };
 
 /// [Judgement](https://ncatlab.org/nlab/show/judgment).

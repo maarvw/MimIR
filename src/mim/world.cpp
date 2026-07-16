@@ -716,6 +716,11 @@ void World::for_each(bool elide_empty, std::function<void(Def*)> f, bool schedul
                 queue.push(mut);
     }
 
+    auto visit = [&](Def* mut) {
+        if (mut->needs_zonk()) zonker().rewire_mut(mut);
+        f(mut);
+    };
+
     // Schedules the mutables in post-order to ensure that they
     // are emitted in the correct order of dependencies.
     if (schedule) {
@@ -724,10 +729,10 @@ void World::for_each(bool elide_empty, std::function<void(Def*)> f, bool schedul
                             return mut->is_closed() && (!elide_empty || mut->is_set());
                         });
         for (auto* mut : schedule)
-            f(mut);
+            visit(mut);
     } else {
         for (auto* mut : muts)
-            f(mut);
+            visit(mut);
     }
 }
 

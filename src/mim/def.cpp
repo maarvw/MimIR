@@ -9,6 +9,7 @@
 #include "mim/world.h"
 
 #include "mim/util/hash.h"
+#include "fe/enum.h"
 
 using namespace std::literals;
 
@@ -29,8 +30,9 @@ Def::Def(World* world, Node node, const Def* type, Defs ops, flags_t flags)
     , external_(false)
     , annex_(false)
     , dep_(node == Node::Hole    ? fe::to_underlying(Dep::Hole)
-           : node == Node::Proxy ? fe::to_underlying(Dep::Proxy)
-           : node == Node::Var   ? fe::to_underlying(Dep::Var | Dep::Mut)
+         : node == Node::Subst   ? fe::to_underlying(Dep::Subst)
+         : node == Node::Proxy   ? fe::to_underlying(Dep::Proxy)
+         : node == Node::Var     ? fe::to_underlying(Dep::Var | Dep::Mut)
                                  : 0)
     , num_ops_(ops.size())
     , type_(type) {
@@ -254,6 +256,7 @@ Def* Def::set(Defs ops) {
         auto def = check(i, ops[i]);
         assert(def);
         ops_ptr()[i] = def;
+        dep_ |= def->dep_;
     }
 #ifndef NDEBUG
     curr_op_ = n;
@@ -273,6 +276,7 @@ Def* Def::set(size_t i, const Def* def) {
     def = check(i, def);
     assert(def && !op(i) && curr_op_++ == i);
     ops_ptr()[i] = def;
+    dep_ |= def->dep_;
 
     if (i + 1 == num_ops()) { // set last op, so check kind
         if (auto t = check()->zonk(); t != type()) type_ = t;
@@ -284,6 +288,7 @@ Def* Def::set(size_t i, const Def* def) {
 Def* Def::set_type(const Def* type) {
     invalidate();
     type_ = type;
+    if (type) dep_ |= type->dep_;
     return this;
 }
 
